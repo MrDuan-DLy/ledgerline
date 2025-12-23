@@ -1,0 +1,17 @@
+.idea/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+data/
+frontend/node_modules/
+frontend/dist/
+
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.pdf
+*.csv
+
+.DS_Store
