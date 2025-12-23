@@ -550,6 +550,14 @@ h3,
   padding: 10px 20px;
 }
 
+.btn-secondary {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 12px;
+  background: #fffdf8;
+  color: var(--ink);
+}
+
 .upload-state {
   color: var(--muted);
 }
@@ -598,6 +606,14 @@ h3,
   color: var(--accent-rose);
 }
 
+.result-ok {
+  color: var(--accent-dark);
+}
+
+.result-bad {
+  color: var(--accent-rose);
+}
+
 .empty {
   color: var(--muted);
   font-size: 14px;
@@ -640,6 +656,15 @@ h3,
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
   align-items: center;
+}
+
+.receipt-match {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .receipt-confirmed {

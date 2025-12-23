@@ -79,6 +79,11 @@ export interface Receipt {
   ocr_raw: string | null;
   ocr_json: string | null;
   transaction_id: number | null;
+  matched_transaction_id: number | null;
+  matched_transaction_date: string | null;
+  matched_transaction_amount: number | null;
+  matched_transaction_description: string | null;
+  matched_reason: string | null;
   created_at: string;
   items: ReceiptItem[];
 }
@@ -222,6 +227,17 @@ export async function uploadReceipt(file: File): Promise<ReceiptUploadResult> {
   return res.json();
 }
 
+export async function uploadReceipts(files: File[]): Promise<ReceiptUploadResult[]> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+
+  const res = await fetch(`${API_BASE}/receipts/upload-batch`, {
+    method: 'POST',
+    body: formData,
+  });
+  return res.json();
+}
+
 export async function getReceipts(): Promise<Receipt[]> {
   const res = await fetch(`${API_BASE}/receipts`);
   return res.json();
@@ -234,6 +250,7 @@ export async function confirmReceipt(id: number, data: {
   currency?: string;
   category_id?: number;
   notes?: string;
+  transaction_id?: number;
 }): Promise<{ transaction_id: number; receipt_id: number }> {
   const res = await fetch(`${API_BASE}/receipts/${id}/confirm`, {
     method: 'POST',

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  uploadReceipt,
+  uploadReceipts,
   getReceipts,
   confirmReceipt,
   getCategories,
@@ -29,7 +29,7 @@ export default function Receipts() {
   }>>({});
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<ReceiptUploadResult | null>(null);
+  const [results, setResults] = useState<ReceiptUploadResult[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -52,34 +52,41 @@ export default function Receipts() {
     loadReceipts();
   }, []);
 
-  const handleUpload = async (file: File) => {
-    const lower = file.name.toLowerCase();
-    if (!lower.endsWith('.jpg') && !lower.endsWith('.jpeg') && !lower.endsWith('.png')) {
-      setResult({
-        success: false,
-        receipt_id: null,
-        message: 'Please upload a JPG or PNG image',
-        errors: ['Only .jpg, .jpeg, .png are supported'],
-      });
+  const handleUpload = async (files: File[]) => {
+    const invalid = files.filter((file) => {
+      const lower = file.name.toLowerCase();
+      return !lower.endsWith('.jpg') && !lower.endsWith('.jpeg') && !lower.endsWith('.png');
+    });
+    if (invalid.length) {
+      setResults([
+        {
+          success: false,
+          receipt_id: null,
+          message: 'Please upload JPG or PNG images',
+          errors: ['Only .jpg, .jpeg, .png are supported'],
+        },
+      ]);
       return;
     }
 
     setUploading(true);
-    setResult(null);
+    setResults([]);
 
     try {
-      const res = await uploadReceipt(file);
-      setResult(res);
-      if (res.success) {
+      const res = await uploadReceipts(files);
+      setResults(res);
+      if (res.some((item) => item.success)) {
         loadReceipts();
       }
     } catch (e) {
-      setResult({
-        success: false,
-        receipt_id: null,
-        message: 'Failed to upload receipt',
-        errors: ['Upload failed'],
-      });
+      setResults([
+        {
+          success: false,
+          receipt_id: null,
+          message: 'Failed to upload receipts',
+          errors: ['Upload failed'],
+        },
+      ]);
     }
 
     setUploading(false);
@@ -88,14 +95,14 @@ export default function Receipts() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
-    if (e.dataTransfer.files?.[0]) {
-      handleUpload(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files?.length) {
+      handleUpload(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      handleUpload(e.target.files[0]);
+    if (e.target.files?.length) {
+      handleUpload(Array.from(e.target.files));
     }
   };
 
@@ -106,6 +113,12 @@ export default function Receipts() {
       total_amount: receipt.total_amount ?? undefined,
     };
     await confirmReceipt(receipt.id, payload);
+    loadReceipts();
+  };
+
+  const handleLinkMatch = async (receipt: Receipt) => {
+    if (!receipt.matched_transaction_id) return;
+    await confirmReceipt(receipt.id, { transaction_id: receipt.matched_transaction_id });
     loadReceipts();
   };
 
@@ -130,6 +143,7 @@ export default function Receipts() {
           ref={fileInputRef}
           className="hidden"
           accept=".jpg,.jpeg,.png"
+          multiple
           onChange={handleFileSelect}
         />
 
@@ -155,15 +169,16 @@ export default function Receipts() {
         )}
       </div>
 
-      {result && (
-        <div className={`panel result-card ${result.success ? 'success' : 'error'}`}>
-          <div className="result-title">{result.success ? 'Parsed' : 'Failed'}</div>
-          <p className="result-message">{result.message}</p>
-          {result.errors.length > 0 && (
-            <ul className="result-errors">
-              {result.errors.map((e, i) => <li key={i}>{e}</li>)}
-            </ul>
-          )}
+      {results.length > 0 && (
+        <div className="panel result-card">
+          <div className="result-title">Batch results</div>
+          <ul className="result-errors">
+            {results.map((res, i) => (
+              <li key={i} className={res.success ? 'result-ok' : 'result-bad'}>
+                {res.success ? 'Parsed' : 'Failed'}: {res.message}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -191,6 +206,20 @@ export default function Receipts() {
                   </div>
                 </div>
                 <div className="receipt-status">{receipt.status}</div>
+                {receipt.matched_transaction_id && receipt.status !== 'confirmed' && (
+                  <div className="receipt-match">
+                    Suggested match: {receipt.matched_transaction_description || 'Transaction'} ·{' '}
+                    {receipt.matched_transaction_date ? formatDate(receipt.matched_transaction_date) : '-'} ·{' '}
+                    {receipt.matched_transaction_amount !== null ? `£${receipt.matched_transaction_amount?.toFixed(2)}` : '-'}
+                    {receipt.matched_reason ? ` (${receipt.matched_reason})` : ''}
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleLinkMatch(receipt)}
+                    >
+                      Link match
+                    </button>
+                  </div>
+                )}
                 <div className="receipt-actions">
                   {receipt.status !== 'confirmed' && (
                     <>

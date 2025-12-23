@@ -4,7 +4,7 @@ import json
 import os
 import hashlib
 import urllib.request
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from ..models import Receipt, ReceiptItem, Transaction
 from ..schemas import ReceiptUploadResult
@@ -109,6 +109,55 @@ class ReceiptService:
         except ValueError:
             return None
 
+    def _find_match(self, receipt_date: date | None, total_amount: float | None, merchant: str | None) -> tuple[int | None, str | None]:
+        """Find a likely matching bank transaction."""
+        if not receipt_date or total_amount is None:
+            return None, None
+
+        amount = -abs(float(total_amount))
+        epsilon = 0.01
+        start_date = receipt_date - timedelta(days=1)
+        end_date = receipt_date + timedelta(days=1)
+
+        candidates = (
+            self.db.query(Transaction)
+            .filter(Transaction.amount >= amount - epsilon)
+            .filter(Transaction.amount <= amount + epsilon)
+            .filter(Transaction.raw_date >= start_date)
+            .filter(Transaction.raw_date <= end_date)
+            .all()
+        )
+        if not candidates:
+            return None, None
+
+        merchant_upper = (merchant or "").upper()
+        tokens = [t for t in merchant_upper.split() if len(t) >= 3]
+
+        best = None
+        best_score = -1
+        reason = None
+        for txn in candidates:
+            score = 0
+            if txn.raw_date == receipt_date:
+                score += 2
+            else:
+                score += 1
+
+            desc_upper = (txn.raw_description or "").upper()
+            if tokens and any(token in desc_upper for token in tokens):
+                score += 1
+
+            if score > best_score:
+                best = txn
+                best_score = score
+                reason = "Amount match within 1 day"
+                if score >= 3:
+                    reason = "Amount + date + merchant match"
+
+        if best:
+            return best.id, reason
+        return None, None
+
     def parse_receipt(self, receipt: Receipt, content: bytes, mime_type: str) -> ReceiptUploadResult:
         """Parse receipt image via Gemini and update receipt record."""
         ok, response = self._gemini_request(content, mime_type)
@@ -144,6 +193,12 @@ class ReceiptService:
         receipt.payment_method = data.get("payment_method")
         receipt.status = "pending"
 
+        matched_id, matched_reason = self._find_match(
+            receipt.receipt_date, receipt.total_amount, receipt.merchant_name
+        )
+        receipt.matched_transaction_id = matched_id
+        receipt.matched_reason = matched_reason
+
         self.db.query(ReceiptItem).filter(ReceiptItem.receipt_id == receipt.id).delete()
         for item in data.get("items", []) or []:
             name = (item.get("name") or "").strip()
@@ -170,6 +225,20 @@ class ReceiptService:
         """Create a transaction from a receipt."""
         if receipt.status == "confirmed":
             return receipt.transaction
+
+        transaction_id = overrides.get("transaction_id")
+        if transaction_id:
+            existing = (
+                self.db.query(Transaction)
+                .filter(Transaction.id == transaction_id)
+                .first()
+            )
+            if not existing:
+                return None
+            receipt.status = "confirmed"
+            receipt.transaction_id = existing.id
+            self.db.commit()
+            return existing
 
         merchant_name = overrides.get("merchant_name") or receipt.merchant_name
         receipt_date = overrides.get("receipt_date") or receipt.receipt_date or date.today()

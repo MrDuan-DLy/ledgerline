@@ -27,8 +27,12 @@ class Receipt(Base):
     ocr_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     transaction_id: Mapped[int | None] = mapped_column(ForeignKey("transactions.id"), nullable=True)
+    matched_transaction_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transactions.id"), nullable=True
+    )
+    matched_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     items = relationship("ReceiptItem", back_populates="receipt", cascade="all, delete-orphan")
-    transaction = relationship("Transaction")
+    transaction = relationship("Transaction", foreign_keys=[transaction_id])

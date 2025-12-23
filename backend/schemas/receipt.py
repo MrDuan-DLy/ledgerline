@@ -1,6 +1,6 @@
 """Receipt schemas."""
 from datetime import date, datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReceiptItemResponse(BaseModel):
@@ -30,8 +30,13 @@ class ReceiptResponse(BaseModel):
     ocr_raw: str | None
     ocr_json: str | None
     transaction_id: int | None
+    matched_transaction_id: int | None = None
+    matched_transaction_date: date | None = None
+    matched_transaction_amount: float | None = None
+    matched_transaction_description: str | None = None
+    matched_reason: str | None = None
     created_at: datetime
-    items: list[ReceiptItemResponse] = []
+    items: list[ReceiptItemResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -53,3 +58,4 @@ class ReceiptConfirmRequest(BaseModel):
     currency: str | None = None
     category_id: int | None = None
     notes: str | None = None
+    transaction_id: int | None = None
