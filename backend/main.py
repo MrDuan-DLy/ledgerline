@@ -8,6 +8,7 @@ from .routers import (
     statements_router,
     categories_router,
     rules_router,
+    receipts_router,
 )
 
 app = FastAPI(
@@ -30,6 +31,7 @@ app.include_router(transactions_router)
 app.include_router(statements_router)
 app.include_router(categories_router)
 app.include_router(rules_router)
+app.include_router(receipts_router)
 
 
 @app.on_event("startup")

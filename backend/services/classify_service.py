@@ -11,6 +11,36 @@ class ClassifyService:
     def __init__(self, db: Session):
         self.db = db
         self._rules_cache: list[Rule] | None = None
+        self._category_cache: dict[str, int | None] = {}
+
+    def _get_category_id(self, name: str) -> int | None:
+        """Lookup category ID by name with a small cache."""
+        if name in self._category_cache:
+            return self._category_cache[name]
+
+        category = self.db.query(Category).filter(Category.name == name).first()
+        category_id = category.id if category else None
+        self._category_cache[name] = category_id
+        return category_id
+
+    def _detect_transfer(self, transaction: Transaction) -> bool:
+        """Detect internal transfer based on amount."""
+        if transaction.amount is None:
+            return False
+
+        transfer_amount = 100.0
+        epsilon = 0.005
+        if abs(abs(transaction.amount) - transfer_amount) > epsilon:
+            return False
+
+        category_name = "Transfer In" if transaction.amount > 0 else "Transfer Out"
+        category_id = self._get_category_id(category_name)
+        if not category_id:
+            return False
+
+        transaction.category_id = category_id
+        transaction.category_source = "rule"
+        return True
 
     def _get_active_rules(self) -> list[Rule]:
         """Get all active rules, ordered by priority (highest first)."""
@@ -68,6 +98,9 @@ class ClassifyService:
         # Don't override manual classifications
         if transaction.category_source == "manual":
             return False
+
+        if self._detect_transfer(transaction):
+            return True
 
         category_id, source = self.classify(transaction.raw_description)
 

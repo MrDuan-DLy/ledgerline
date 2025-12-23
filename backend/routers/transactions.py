@@ -17,6 +17,31 @@ from ..schemas import (
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
+TRANSFER_AMOUNT = 100.0
+TRANSFER_EPSILON = 0.005
+
+
+def _get_transfer_category_ids(db: Session) -> list[int]:
+    """Fetch category IDs for transfer categories if they exist."""
+    rows = (
+        db.query(Category.id)
+        .filter(Category.name.in_(["Transfer In", "Transfer Out"]))
+        .all()
+    )
+    return [row.id for row in rows]
+
+
+def _exclude_transfers(query, transfer_ids: list[int]):
+    """Exclude internal transfers from stats queries."""
+    query = query.filter(
+        func.abs(func.abs(Transaction.amount) - TRANSFER_AMOUNT) > TRANSFER_EPSILON
+    )
+    if transfer_ids:
+        query = query.filter(
+            (Transaction.category_id.is_(None)) | (~Transaction.category_id.in_(transfer_ids))
+        )
+    return query
+
 
 def _to_response(txn: Transaction) -> TransactionResponse:
     """Convert Transaction model to response schema."""
@@ -168,6 +193,9 @@ def get_summary(
     if end_date:
         query = query.filter(Transaction.raw_date <= end_date)
 
+    transfer_ids = _get_transfer_category_ids(db)
+    query = _exclude_transfers(query, transfer_ids)
+
     total_count = query.count()
     income = query.filter(Transaction.amount > 0).with_entities(func.sum(Transaction.amount)).scalar() or 0
     expenses = query.filter(Transaction.amount < 0).with_entities(func.sum(Transaction.amount)).scalar() or 0
@@ -195,6 +223,9 @@ def get_series(
         base_query = base_query.filter(Transaction.raw_date >= start_date)
     if end_date:
         base_query = base_query.filter(Transaction.raw_date <= end_date)
+
+    transfer_ids = _get_transfer_category_ids(db)
+    base_query = _exclude_transfers(base_query, transfer_ids)
 
     date_filter = base_query.subquery()
 

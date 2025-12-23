@@ -604,6 +604,63 @@ h3,
   padding: 12px 0;
 }
 
+.receipt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.receipt-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fffdf8;
+  display: grid;
+  gap: 12px;
+}
+
+.receipt-title {
+  font-weight: 600;
+}
+
+.receipt-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.receipt-status {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+}
+
+.receipt-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: center;
+}
+
+.receipt-confirmed {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.receipt-items {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.receipt-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .reveal {
   animation: fade-up 600ms ease both;
   animation-delay: calc(var(--i) * 80ms);

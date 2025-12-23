@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Import from './pages/Import';
+import Receipts from './pages/Receipts';
 
 function App() {
   return (
@@ -24,6 +25,9 @@ function App() {
               <NavLink to="/import" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                 Import
               </NavLink>
+              <NavLink to="/receipts" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                Receipts
+              </NavLink>
             </div>
           </div>
         </nav>
@@ -33,6 +37,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/import" element={<Import />} />
+            <Route path="/receipts" element={<Receipts />} />
           </Routes>
         </main>
       </div>

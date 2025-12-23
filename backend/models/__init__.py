@@ -5,6 +5,8 @@ from .transaction import Transaction
 from .category import Category
 from .rule import Rule
 from .audit import AuditLog
+from .receipt import Receipt
+from .receipt_item import ReceiptItem
 
 __all__ = [
     "Account",
@@ -13,4 +15,6 @@ __all__ = [
     "Category",
     "Rule",
     "AuditLog",
+    "Receipt",
+    "ReceiptItem",
 ]

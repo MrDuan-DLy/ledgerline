@@ -24,6 +24,12 @@ from .rule import (
     RuleCreate,
     RuleResponse,
 )
+from .receipt import (
+    ReceiptItemResponse,
+    ReceiptResponse,
+    ReceiptUploadResult,
+    ReceiptConfirmRequest,
+)
 
 __all__ = [
     "TransactionBase",
@@ -43,4 +49,8 @@ __all__ = [
     "RuleBase",
     "RuleCreate",
     "RuleResponse",
+    "ReceiptItemResponse",
+    "ReceiptResponse",
+    "ReceiptUploadResult",
+    "ReceiptConfirmRequest",
 ]

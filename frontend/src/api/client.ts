@@ -57,6 +57,39 @@ export interface ImportResult {
   message: string;
 }
 
+export interface ReceiptItem {
+  id: number;
+  name: string;
+  quantity: number | null;
+  unit_price: number | null;
+  line_total: number | null;
+}
+
+export interface Receipt {
+  id: number;
+  image_path: string;
+  image_hash: string;
+  merchant_name: string | null;
+  receipt_date: string | null;
+  receipt_time: string | null;
+  total_amount: number | null;
+  currency: string | null;
+  payment_method: string | null;
+  status: string;
+  ocr_raw: string | null;
+  ocr_json: string | null;
+  transaction_id: number | null;
+  created_at: string;
+  items: ReceiptItem[];
+}
+
+export interface ReceiptUploadResult {
+  success: boolean;
+  receipt_id: number | null;
+  message: string;
+  errors: string[];
+}
+
 export interface Summary {
   total_transactions: number;
   total_income: number;
@@ -173,6 +206,39 @@ export async function uploadStatement(file: File): Promise<ImportResult> {
   const res = await fetch(`${API_BASE}/statements/upload`, {
     method: 'POST',
     body: formData,
+  });
+  return res.json();
+}
+
+// Receipts
+export async function uploadReceipt(file: File): Promise<ReceiptUploadResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_BASE}/receipts/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  return res.json();
+}
+
+export async function getReceipts(): Promise<Receipt[]> {
+  const res = await fetch(`${API_BASE}/receipts`);
+  return res.json();
+}
+
+export async function confirmReceipt(id: number, data: {
+  merchant_name?: string;
+  receipt_date?: string;
+  total_amount?: number;
+  currency?: string;
+  category_id?: number;
+  notes?: string;
+}): Promise<{ transaction_id: number; receipt_id: number }> {
+  const res = await fetch(`${API_BASE}/receipts/${id}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
   });
   return res.json();
 }

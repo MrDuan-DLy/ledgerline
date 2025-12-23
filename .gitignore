@@ -15,3 +15,4 @@ frontend/dist/
 *.csv
 
 .DS_Store
+.env
