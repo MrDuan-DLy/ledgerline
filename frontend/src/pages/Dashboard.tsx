@@ -68,6 +68,8 @@ export default function Dashboard() {
   const [recent, setRecent] = useState<Transaction[]>([]);
   const [statements, setStatements] = useState<Statement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lineHoverIndex, setLineHoverIndex] = useState<number | null>(null);
+  const [barHoverIndex, setBarHoverIndex] = useState<number | null>(null);
 
   const range = useMemo(() => {
     const end = new Date();
@@ -101,8 +103,8 @@ export default function Dashboard() {
   const daily = series?.daily ?? [];
   const buckets = useMemo(() => bucketDaily(daily), [daily]);
 
-  const linePath = useMemo(() => {
-    if (daily.length < 2) return '';
+  const lineData = useMemo(() => {
+    if (daily.length < 2) return { path: '', points: [] as { x: number; y: number }[] };
     const values = daily.map((item) => item.cumulative);
     const min = Math.min(...values);
     const max = Math.max(...values);
@@ -110,23 +112,57 @@ export default function Dashboard() {
     const height = 220;
     const pad = 24;
     const rangeVal = max - min || 1;
+    const points = values.map((value, index) => {
+      const x = pad + (index / (values.length - 1)) * (width - pad * 2);
+      const y = height - pad - ((value - min) / rangeVal) * (height - pad * 2);
+      return { x, y };
+    });
 
-    return values
-      .map((value, index) => {
-        const x = pad + (index / (values.length - 1)) * (width - pad * 2);
-        const y = height - pad - ((value - min) / rangeVal) * (height - pad * 2);
-        return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-      })
+    const path = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
       .join(' ');
+    return { path, points };
   }, [daily]);
 
   const areaPath = useMemo(() => {
-    if (!linePath) return '';
+    if (!lineData.path) return '';
     const width = 600;
     const height = 220;
     const pad = 24;
-    return `${linePath} L ${width - pad} ${height - pad} L ${pad} ${height - pad} Z`;
-  }, [linePath]);
+    return `${lineData.path} L ${width - pad} ${height - pad} L ${pad} ${height - pad} Z`;
+  }, [lineData.path]);
+
+  const monthTicks = useMemo(() => {
+    if (!daily.length) return [];
+    const ticks: { label: string; index: number }[] = [];
+    let lastMonth = '';
+    daily.forEach((item, index) => {
+      const d = new Date(item.date);
+      const label = d.toLocaleDateString('en-GB', { month: 'short' });
+      const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+      if (monthKey !== lastMonth) {
+        ticks.push({ label, index });
+        lastMonth = monthKey;
+      }
+    });
+    return ticks;
+  }, [daily]);
+
+  const bucketMonthTicks = useMemo(() => {
+    if (!buckets.length) return [];
+    const ticks: { label: string; index: number }[] = [];
+    let lastMonth = '';
+    buckets.forEach((bucket, index) => {
+      const d = new Date(bucket.label);
+      const label = d.toLocaleDateString('en-GB', { month: 'short' });
+      const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+      if (monthKey !== lastMonth) {
+        ticks.push({ label, index });
+        lastMonth = monthKey;
+      }
+    });
+    return ticks;
+  }, [buckets]);
 
   const donut = useMemo(() => {
     const categories = (series?.categories ?? [])
@@ -189,12 +225,31 @@ export default function Dashboard() {
               <div className="panel-title">Balance trajectory</div>
               <div className="panel-sub">Cumulative net movement by day</div>
             </div>
-            <div className="panel-pill">{daily.length} days</div>
+            <div className="panel-pill">
+              {lineHoverIndex !== null && daily[lineHoverIndex]
+                ? `${formatDate(daily[lineHoverIndex].date)} · ${formatCurrency(daily[lineHoverIndex].cumulative)}`
+                : `${daily.length} days`}
+            </div>
           </div>
           {daily.length === 0 ? (
             <div className="empty">No data yet. Import a statement to see movement.</div>
           ) : (
-            <svg viewBox="0 0 600 220" className="chart-svg">
+            <svg
+              viewBox="0 0 600 220"
+              className="chart-svg chart-hover"
+              onMouseLeave={() => setLineHoverIndex(null)}
+              onMouseMove={(event) => {
+                const rect = (event.currentTarget as SVGSVGElement).getBoundingClientRect();
+                const width = 600;
+                const pad = 24;
+                const ratio = (event.clientX - rect.left) / rect.width;
+                const x = ratio * width;
+                const index = Math.round(((x - pad) / (width - pad * 2)) * (daily.length - 1));
+                if (index >= 0 && index < daily.length) {
+                  setLineHoverIndex(index);
+                }
+              }}
+            >
               <defs>
                 <linearGradient id="areaFade" x1="0" x2="0" y1="0" y2="1">
                   <stop offset="0%" stopColor="#3B8B80" stopOpacity="0.35" />
@@ -202,7 +257,33 @@ export default function Dashboard() {
                 </linearGradient>
               </defs>
               <path d={areaPath} fill="url(#areaFade)" />
-              <path d={linePath} fill="none" stroke="#1B4332" strokeWidth="3" strokeLinecap="round" />
+              <path d={lineData.path} fill="none" stroke="#1B4332" strokeWidth="3" strokeLinecap="round" />
+              {lineData.points.map((point, index) => (
+                <circle
+                  key={index}
+                  cx={point.x}
+                  cy={point.y}
+                  r={lineHoverIndex === index ? 5 : 3}
+                  fill={lineHoverIndex === index ? '#D1495B' : '#1B4332'}
+                  opacity={lineHoverIndex === null || lineHoverIndex === index ? 1 : 0.35}
+                />
+              ))}
+              {monthTicks.map((tick) => {
+                const width = 600;
+                const pad = 24;
+                const x = pad + (tick.index / Math.max(daily.length - 1, 1)) * (width - pad * 2);
+                return (
+                  <text
+                    key={tick.label + tick.index}
+                    x={x}
+                    y="210"
+                    className="chart-label"
+                    textAnchor="middle"
+                  >
+                    {tick.label}
+                  </text>
+                );
+              })}
             </svg>
           )}
         </div>
@@ -213,12 +294,32 @@ export default function Dashboard() {
               <div className="panel-title">Cashflow rhythm</div>
               <div className="panel-sub">Income up, expenses down</div>
             </div>
-            <div className="panel-pill">Grouped</div>
+            <div className="panel-pill">
+              {barHoverIndex !== null && buckets[barHoverIndex]
+                ? `${formatDate(buckets[barHoverIndex].label)} · +£${buckets[barHoverIndex].income.toFixed(2)} / -£${buckets[barHoverIndex].expenses.toFixed(2)}`
+                : 'Grouped'}
+            </div>
           </div>
           {buckets.length === 0 ? (
             <div className="empty">Waiting for transactions.</div>
           ) : (
-            <svg viewBox="0 0 600 220" className="chart-svg">
+            <svg
+              viewBox="0 0 600 220"
+              className="chart-svg chart-hover"
+              onMouseLeave={() => setBarHoverIndex(null)}
+              onMouseMove={(event) => {
+                const rect = (event.currentTarget as SVGSVGElement).getBoundingClientRect();
+                const width = 600;
+                const pad = 24;
+                const ratio = (event.clientX - rect.left) / rect.width;
+                const x = ratio * width;
+                const barSpace = (width - pad * 2) / buckets.length;
+                const index = Math.floor((x - pad) / barSpace);
+                if (index >= 0 && index < buckets.length) {
+                  setBarHoverIndex(index);
+                }
+              }}
+            >
               {(() => {
                 const width = 600;
                 const height = 220;
@@ -234,6 +335,7 @@ export default function Dashboard() {
                   const x = pad + index * barSpace;
                   const incomeHeight = bucket.income * scale;
                   const expenseHeight = bucket.expenses * scale;
+                  const isActive = barHoverIndex === null || barHoverIndex === index;
                   return (
                     <g key={bucket.label}>
                       <rect
@@ -241,7 +343,7 @@ export default function Dashboard() {
                         y={mid - incomeHeight}
                         width={barSpace * 0.3}
                         height={incomeHeight}
-                        fill="#40916C"
+                        fill={isActive ? '#40916C' : '#9BC1B6'}
                         rx="3"
                       />
                       <rect
@@ -249,7 +351,7 @@ export default function Dashboard() {
                         y={mid}
                         width={barSpace * 0.3}
                         height={expenseHeight}
-                        fill="#D1495B"
+                        fill={isActive ? '#D1495B' : '#E6A1AB'}
                         rx="3"
                       />
                     </g>
@@ -257,6 +359,23 @@ export default function Dashboard() {
                 });
               })()}
               <line x1="24" x2="576" y1="110" y2="110" stroke="#DAD2BC" strokeWidth="1" />
+              {bucketMonthTicks.map((tick) => {
+                const width = 600;
+                const pad = 24;
+                const barSpace = (width - pad * 2) / buckets.length;
+                const x = pad + tick.index * barSpace + barSpace * 0.1;
+                return (
+                  <text
+                    key={tick.label + tick.index}
+                    x={x}
+                    y="210"
+                    className="chart-label"
+                    textAnchor="middle"
+                  >
+                    {tick.label}
+                  </text>
+                );
+              })}
             </svg>
           )}
         </div>

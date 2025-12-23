@@ -273,6 +273,15 @@ h3,
   height: auto;
 }
 
+.chart-hover {
+  cursor: crosshair;
+}
+
+.chart-label {
+  font-size: 11px;
+  fill: var(--muted);
+}
+
 .donut-wrap {
   display: grid;
   grid-template-columns: 120px 1fr;
