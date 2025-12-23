@@ -8,6 +8,8 @@ from .transaction import (
     DailySeriesPoint,
     CategoryTotal,
     StatsSeriesResponse,
+    MonthlySpendPoint,
+    MonthlySpendResponse,
 )
 from .statement import (
     StatementCreate,
@@ -40,6 +42,8 @@ __all__ = [
     "DailySeriesPoint",
     "CategoryTotal",
     "StatsSeriesResponse",
+    "MonthlySpendPoint",
+    "MonthlySpendResponse",
     "StatementCreate",
     "StatementResponse",
     "ImportResult",

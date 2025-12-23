@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   getSummary,
   getStatsSeries,
+  getMonthlySpend,
   getTransactions,
   getStatements,
+  getCategories,
   Summary,
   StatsSeriesResponse,
+  MonthlySpendResponse,
   Transaction,
   Statement,
+  Category,
 } from '../api/client';
 
 const CHART_COLORS = ['#2D6A4F', '#3B8B80', '#E09F3E', '#D1495B', '#6D4C41', '#7A6C5D'];
@@ -65,11 +69,15 @@ const bucketDaily = (daily: StatsSeriesResponse['daily']): Bucket[] => {
 export default function Dashboard() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [series, setSeries] = useState<StatsSeriesResponse | null>(null);
+  const [monthly, setMonthly] = useState<MonthlySpendResponse | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
   const [recent, setRecent] = useState<Transaction[]>([]);
   const [statements, setStatements] = useState<Statement[]>([]);
   const [loading, setLoading] = useState(true);
   const [lineHoverIndex, setLineHoverIndex] = useState<number | null>(null);
   const [barHoverIndex, setBarHoverIndex] = useState<number | null>(null);
+  const [monthlyHoverIndex, setMonthlyHoverIndex] = useState<number | null>(null);
 
   const range = useMemo(() => {
     const end = new Date();
@@ -99,6 +107,26 @@ export default function Dashboard() {
     };
     load();
   }, [range.end, range.start]);
+
+  useEffect(() => {
+    const loadMonthly = async () => {
+      try {
+        const [monthlyRes, categoriesRes] = await Promise.all([
+          getMonthlySpend({
+            start_date: range.start,
+            end_date: range.end,
+            category_id: selectedCategory === 'all' ? undefined : selectedCategory,
+          }),
+          getCategories(),
+        ]);
+        setMonthly(monthlyRes);
+        setCategories(categoriesRes);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadMonthly();
+  }, [range.end, range.start, selectedCategory]);
 
   const daily = series?.daily ?? [];
   const buckets = useMemo(() => bucketDaily(daily), [daily]);
@@ -185,6 +213,36 @@ export default function Dashboard() {
     const total = top.reduce((sum, item) => sum + item.expenses, 0);
     return { total, segments: top };
   }, [series?.categories]);
+
+  const monthlySeries = monthly?.series ?? [];
+  const monthlyLine = useMemo(() => {
+    if (!monthlySeries.length) return { path: '', points: [] as { x: number; y: number }[] };
+    const values = monthlySeries.map((item) => item.total_expenses);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const width = 600;
+    const height = 200;
+    const pad = 24;
+    const rangeVal = max - min || 1;
+    const divisor = Math.max(values.length - 1, 1);
+    const points = values.map((value, index) => {
+      const x = pad + (index / divisor) * (width - pad * 2);
+      const y = height - pad - ((value - min) / rangeVal) * (height - pad * 2);
+      return { x, y };
+    });
+    const path = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+      .join(' ');
+    return { path, points };
+  }, [monthlySeries]);
+
+  const monthlyTicks = useMemo(() => {
+    if (!monthlySeries.length) return [];
+    return monthlySeries.map((item, index) => ({
+      label: item.month,
+      index,
+    }));
+  }, [monthlySeries]);
 
   return (
     <div className="page">
@@ -379,6 +437,87 @@ export default function Dashboard() {
             </svg>
           )}
         </div>
+      </div>
+
+      <div className="panel chart-card monthly-chart">
+          <div className="panel-header">
+            <div>
+              <div className="panel-title">Monthly spend</div>
+              <div className="panel-sub">Track a category month by month</div>
+            </div>
+            <div className="panel-pill">
+              {monthlyHoverIndex !== null && monthlySeries[monthlyHoverIndex]
+                ? `${monthlySeries[monthlyHoverIndex].month} · £${monthlySeries[monthlyHoverIndex].total_expenses.toFixed(2)}`
+                : 'Monthly'}
+            </div>
+          </div>
+          <div className="monthly-controls">
+            <label>
+              Category
+              <select
+                className="table-select"
+                value={selectedCategory === 'all' ? 'all' : selectedCategory}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setSelectedCategory(value === 'all' ? 'all' : Number(value));
+                }}
+              >
+                <option value="all">All expenses</option>
+                {categories.filter((cat) => cat.is_expense).map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {monthlySeries.length === 0 ? (
+            <div className="empty">No monthly data yet.</div>
+          ) : (
+            <svg
+              viewBox="0 0 600 200"
+              className="chart-svg chart-hover"
+              onMouseLeave={() => setMonthlyHoverIndex(null)}
+              onMouseMove={(event) => {
+                const rect = (event.currentTarget as SVGSVGElement).getBoundingClientRect();
+                const width = 600;
+                const pad = 24;
+                const ratio = (event.clientX - rect.left) / rect.width;
+                const x = ratio * width;
+                const index = Math.round(((x - pad) / (width - pad * 2)) * (monthlySeries.length - 1));
+                if (index >= 0 && index < monthlySeries.length) {
+                  setMonthlyHoverIndex(index);
+                }
+              }}
+            >
+              <path d={monthlyLine.path} fill="none" stroke="#3B8B80" strokeWidth="3" />
+              {monthlyLine.points.map((point, index) => (
+                <circle
+                  key={index}
+                  cx={point.x}
+                  cy={point.y}
+                  r={monthlyHoverIndex === index ? 5 : 3}
+                  fill={monthlyHoverIndex === index ? '#E09F3E' : '#3B8B80'}
+                  opacity={monthlyHoverIndex === null || monthlyHoverIndex === index ? 1 : 0.4}
+                />
+              ))}
+              {monthlyTicks.map((tick) => {
+                const width = 600;
+                const pad = 24;
+                const x = pad + (tick.index / Math.max(monthlySeries.length - 1, 1)) * (width - pad * 2);
+                const label = tick.label.split('-')[1];
+                return (
+                  <text
+                    key={tick.label}
+                    x={x}
+                    y="188"
+                    className="chart-label"
+                    textAnchor="middle"
+                  >
+                    {label}
+                  </text>
+                );
+              })}
+            </svg>
+          )}
       </div>
 
       <div className="grid-secondary">

@@ -13,6 +13,8 @@ from ..schemas import (
     StatsSeriesResponse,
     DailySeriesPoint,
     CategoryTotal,
+    MonthlySpendResponse,
+    MonthlySpendPoint,
 )
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
@@ -301,4 +303,53 @@ def get_series(
         end_date=end_date,
         daily=daily,
         categories=categories,
+    )
+
+
+@router.get("/stats/monthly", response_model=MonthlySpendResponse)
+def get_monthly_spend(
+    start_date: date | None = None,
+    end_date: date | None = None,
+    category_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    """Get monthly spend totals, optionally filtered by category."""
+    query = db.query(Transaction)
+
+    if start_date:
+        query = query.filter(Transaction.raw_date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.raw_date <= end_date)
+    if category_id:
+        query = query.filter(Transaction.category_id == category_id)
+
+    transfer_ids = _get_transfer_category_ids(db)
+    query = _exclude_transfers(query, transfer_ids)
+
+    month_rows = (
+        db.query(
+            func.strftime("%Y-%m", Transaction.raw_date).label("month"),
+            func.sum(-Transaction.amount).label("total_expenses"),
+        )
+        .select_from(Transaction)
+        .filter(Transaction.amount < 0)
+        .filter(Transaction.id.in_(query.with_entities(Transaction.id)))
+        .group_by(func.strftime("%Y-%m", Transaction.raw_date))
+        .order_by(func.strftime("%Y-%m", Transaction.raw_date))
+        .all()
+    )
+
+    series = [
+        MonthlySpendPoint(
+            month=row.month,
+            total_expenses=round(float(row.total_expenses or 0.0), 2),
+        )
+        for row in month_rows
+    ]
+
+    return MonthlySpendResponse(
+        start_date=start_date,
+        end_date=end_date,
+        category_id=category_id,
+        series=series,
     )

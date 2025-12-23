@@ -73,6 +73,26 @@ def get_receipt(receipt_id: int, db: Session = Depends(get_db)):
     return _to_response(receipt, matched_txn)
 
 
+@router.get("/by-transaction/{transaction_id}", response_model=ReceiptResponse)
+def get_receipt_by_transaction(transaction_id: int, db: Session = Depends(get_db)):
+    """Get receipt linked to a transaction."""
+    receipt = (
+        db.query(Receipt)
+        .filter(Receipt.transaction_id == transaction_id)
+        .first()
+    )
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    matched_txn = None
+    if receipt.matched_transaction_id:
+        matched_txn = (
+            db.query(Transaction)
+            .filter(Transaction.id == receipt.matched_transaction_id)
+            .first()
+        )
+    return _to_response(receipt, matched_txn)
+
+
 @router.post("/upload", response_model=ReceiptUploadResult)
 async def upload_receipt(
     file: UploadFile = File(...),

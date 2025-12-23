@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import {
   getTransactions,
   getCategories,
   getSummary,
   updateTransaction,
   bulkClassify,
+  getReceiptByTransaction,
   Transaction,
   Category,
   Summary,
+  Receipt,
 } from '../api/client';
 
 export default function Transactions() {
@@ -20,6 +22,8 @@ export default function Transactions() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [unclassifiedOnly, setUnclassifiedOnly] = useState(false);
   const [search, setSearch] = useState('');
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [receiptMap, setReceiptMap] = useState<Record<number, Receipt | null | undefined>>({});
 
   const loadData = async () => {
     setLoading(true);
@@ -63,6 +67,21 @@ export default function Transactions() {
       newSet.add(id);
     }
     setSelectedIds(newSet);
+  };
+
+  const toggleExpand = async (txnId: number) => {
+    const next = new Set(expandedIds);
+    if (next.has(txnId)) {
+      next.delete(txnId);
+      setExpandedIds(next);
+      return;
+    }
+    next.add(txnId);
+    setExpandedIds(next);
+    if (!(txnId in receiptMap)) {
+      const receipt = await getReceiptByTransaction(txnId);
+      setReceiptMap((prev) => ({ ...prev, [txnId]: receipt }));
+    }
   };
 
   const selectAll = () => {
@@ -189,32 +208,85 @@ export default function Transactions() {
               <tr><td colSpan={5} className="table-empty">No transactions found</td></tr>
             ) : (
               transactions.map((txn) => (
-                <tr key={txn.id} className={selectedIds.has(txn.id) ? 'selected' : ''}>
-                  <td className="table-cell">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(txn.id)}
-                      onChange={() => toggleSelect(txn.id)}
-                    />
-                  </td>
-                  <td className="table-cell">{formatDate(txn.raw_date)}</td>
-                  <td className="table-cell">{txn.raw_description}</td>
-                  <td className={`table-cell right amount ${txn.amount < 0 ? 'neg' : 'pos'}`}>
-                    {formatAmount(txn.amount)}
-                  </td>
-                  <td className="table-cell">
-                    <select
-                      className={`table-select ${!txn.category_id ? 'unassigned' : ''}`}
-                      value={txn.category_id || ''}
-                      onChange={(e) => handleCategoryChange(txn.id, parseInt(e.target.value))}
-                    >
-                      <option value="">-- Select --</option>
-                      {categories.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
+                <Fragment key={txn.id}>
+                  <tr className={selectedIds.has(txn.id) ? 'selected' : ''}>
+                    <td className="table-cell">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(txn.id)}
+                        onChange={() => toggleSelect(txn.id)}
+                      />
+                    </td>
+                    <td className="table-cell">{formatDate(txn.raw_date)}</td>
+                    <td className="table-cell">
+                      <div className="txn-desc">
+                        <span>{txn.raw_description}</span>
+                        <button
+                          className="link-button"
+                          onClick={() => toggleExpand(txn.id)}
+                        >
+                          {expandedIds.has(txn.id) ? 'Hide' : 'Details'}
+                        </button>
+                      </div>
+                    </td>
+                    <td className={`table-cell right amount ${txn.amount < 0 ? 'neg' : 'pos'}`}>
+                      {formatAmount(txn.amount)}
+                    </td>
+                    <td className="table-cell">
+                      <select
+                        className={`table-select ${!txn.category_id ? 'unassigned' : ''}`}
+                        value={txn.category_id || ''}
+                        onChange={(e) => handleCategoryChange(txn.id, parseInt(e.target.value))}
+                      >
+                        <option value="">-- Select --</option>
+                        {categories.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                  {expandedIds.has(txn.id) && (
+                    <tr className="details-row">
+                      <td className="table-cell" />
+                      <td className="table-cell" colSpan={4}>
+                        <div className="receipt-details">
+                          {receiptMap[txn.id] === undefined && (
+                            <div className="receipt-empty">Loading receipt...</div>
+                          )}
+                          {receiptMap[txn.id] === null && (
+                            <div className="receipt-empty">No receipt linked to this transaction.</div>
+                          )}
+                          {receiptMap[txn.id] && (
+                            <>
+                              <div className="receipt-header">
+                                <div>{receiptMap[txn.id]?.merchant_name || 'Receipt'}</div>
+                                <div>
+                                  {receiptMap[txn.id]?.total_amount !== null
+                                    ? `£${receiptMap[txn.id]?.total_amount?.toFixed(2)}`
+                                    : '-'}
+                                </div>
+                              </div>
+                              <div className="receipt-items">
+                                {receiptMap[txn.id]?.items.length ? (
+                                  receiptMap[txn.id]?.items.map((item) => (
+                                    <div key={item.id} className="receipt-item">
+                                      <span>{item.name}</span>
+                                      <span>
+                                        {item.line_total !== null ? `£${item.line_total?.toFixed(2)}` : ''}
+                                      </span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="receipt-empty">No item details found.</div>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))
             )}
           </tbody>

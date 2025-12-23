@@ -94,3 +94,17 @@ class StatsSeriesResponse(BaseModel):
     end_date: date | None
     daily: list[DailySeriesPoint]
     categories: list[CategoryTotal]
+
+
+class MonthlySpendPoint(BaseModel):
+    """Monthly spend point."""
+    month: str
+    total_expenses: float
+
+
+class MonthlySpendResponse(BaseModel):
+    """Monthly spend response for a category."""
+    start_date: date | None
+    end_date: date | None
+    category_id: int | None
+    series: list[MonthlySpendPoint]

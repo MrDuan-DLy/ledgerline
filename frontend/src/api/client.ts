@@ -128,6 +128,18 @@ export interface StatsSeriesResponse {
   categories: CategoryTotal[];
 }
 
+export interface MonthlySpendPoint {
+  month: string;
+  total_expenses: number;
+}
+
+export interface MonthlySpendResponse {
+  start_date: string | null;
+  end_date: string | null;
+  category_id: number | null;
+  series: MonthlySpendPoint[];
+}
+
 // Transactions
 export async function getTransactions(params: {
   page?: number;
@@ -192,6 +204,19 @@ export async function getStatsSeries(params: {
   return res.json();
 }
 
+export async function getMonthlySpend(params: {
+  start_date?: string;
+  end_date?: string;
+  category_id?: number;
+}): Promise<MonthlySpendResponse> {
+  const query = new URLSearchParams();
+  if (params.start_date) query.set('start_date', params.start_date);
+  if (params.end_date) query.set('end_date', params.end_date);
+  if (params.category_id) query.set('category_id', params.category_id.toString());
+  const res = await fetch(`${API_BASE}/transactions/stats/monthly?${query}`);
+  return res.json();
+}
+
 // Categories
 export async function getCategories(): Promise<Category[]> {
   const res = await fetch(`${API_BASE}/categories`);
@@ -240,6 +265,14 @@ export async function uploadReceipts(files: File[]): Promise<ReceiptUploadResult
 
 export async function getReceipts(): Promise<Receipt[]> {
   const res = await fetch(`${API_BASE}/receipts`);
+  return res.json();
+}
+
+export async function getReceiptByTransaction(transactionId: number): Promise<Receipt | null> {
+  const res = await fetch(`${API_BASE}/receipts/by-transaction/${transactionId}`);
+  if (!res.ok) {
+    return null;
+  }
   return res.json();
 }
 

@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
 :root {
   --ink: #1f1b16;
@@ -268,6 +268,10 @@ h3,
   padding: 20px;
 }
 
+.monthly-chart {
+  width: 100%;
+}
+
 .chart-svg {
   width: 100%;
   height: auto;
@@ -280,6 +284,19 @@ h3,
 .chart-label {
   font-size: 11px;
   fill: var(--muted);
+}
+
+.monthly-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.monthly-controls select {
+  margin-left: 8px;
 }
 
 .donut-wrap {
@@ -492,6 +509,38 @@ h3,
 .table-empty {
   text-align: center;
   padding: 20px;
+  color: var(--muted);
+}
+
+.txn-desc {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.link-button {
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.details-row {
+  background: #fdf6ed;
+}
+
+.receipt-details {
+  display: grid;
+  gap: 10px;
+}
+
+.receipt-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.receipt-empty {
+  font-size: 13px;
   color: var(--muted);
 }
 
