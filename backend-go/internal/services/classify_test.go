@@ -134,27 +134,27 @@ func TestMatches(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "exact match case insensitive",
-			rule: cachedRule{Pattern: "tesco", PatternType: "exact"},
-			desc: "TESCO",
+			name:     "exact match case insensitive",
+			rule:     cachedRule{Pattern: "tesco", PatternType: "exact"},
+			desc:     "TESCO",
 			expected: true,
 		},
 		{
-			name: "exact match no match",
-			rule: cachedRule{Pattern: "tesco", PatternType: "exact"},
-			desc: "TESCO EXTRA",
+			name:     "exact match no match",
+			rule:     cachedRule{Pattern: "tesco", PatternType: "exact"},
+			desc:     "TESCO EXTRA",
 			expected: false,
 		},
 		{
-			name: "contains match",
-			rule: cachedRule{Pattern: "uber", PatternType: "contains"},
-			desc: "UBER EATS LONDON",
+			name:     "contains match",
+			rule:     cachedRule{Pattern: "uber", PatternType: "contains"},
+			desc:     "UBER EATS LONDON",
 			expected: true,
 		},
 		{
-			name: "contains no match",
-			rule: cachedRule{Pattern: "uber", PatternType: "contains"},
-			desc: "AMAZON PRIME",
+			name:     "contains no match",
+			rule:     cachedRule{Pattern: "uber", PatternType: "contains"},
+			desc:     "AMAZON PRIME",
 			expected: false,
 		},
 		{

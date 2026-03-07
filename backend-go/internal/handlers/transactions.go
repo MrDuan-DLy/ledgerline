@@ -395,10 +395,10 @@ func (h *TransactionHandler) Summary(w http.ResponseWriter, r *http.Request) {
 	where := "WHERE " + strings.Join(whereParts, " AND ")
 
 	type summaryRow struct {
-		Count          int             `db:"cnt"`
-		Income         sql.NullFloat64 `db:"income"`
-		Expenses       sql.NullFloat64 `db:"expenses"`
-		Unclassified   int             `db:"unclassified"`
+		Count        int             `db:"cnt"`
+		Income       sql.NullFloat64 `db:"income"`
+		Expenses     sql.NullFloat64 `db:"expenses"`
+		Unclassified int             `db:"unclassified"`
 	}
 
 	var row summaryRow

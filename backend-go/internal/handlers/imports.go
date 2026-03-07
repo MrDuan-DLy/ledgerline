@@ -181,10 +181,10 @@ func (h *ImportHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// Duplicate detection
 	type itemForDup struct {
-		ID     int    `db:"id"`
-		Date   string `db:"extracted_date"`
+		ID     int     `db:"id"`
+		Date   string  `db:"extracted_date"`
 		Amount float64 `db:"extracted_amount"`
-		Desc   string `db:"extracted_description"`
+		Desc   string  `db:"extracted_description"`
 	}
 	var items []itemForDup
 	if err := h.db.Select(&items, `SELECT id, COALESCE(extracted_date,'') as extracted_date, COALESCE(extracted_amount,0) as extracted_amount, COALESCE(extracted_description,'') as extracted_description FROM import_items WHERE session_id = ?`, sessionID); err != nil {

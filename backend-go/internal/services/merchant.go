@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	suffixRE    = regexp.MustCompile(`(?i)\b(ltd|limited|plc|inc|incorporated|corp|corporation|co|llc|llp|uk|group)\b`)
-	nonAlphaRE  = regexp.MustCompile(`[^a-z0-9\s]`)
+	suffixRE     = regexp.MustCompile(`(?i)\b(ltd|limited|plc|inc|incorporated|corp|corporation|co|llc|llp|uk|group)\b`)
+	nonAlphaRE   = regexp.MustCompile(`[^a-z0-9\s]`)
 	multiSpaceRE = regexp.MustCompile(`\s+`)
 )
 

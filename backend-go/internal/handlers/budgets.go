@@ -253,4 +253,3 @@ func budgetRowToResponse(row models.BudgetRow) models.BudgetResponse {
 	}
 	return resp
 }
-

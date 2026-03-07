@@ -183,4 +183,3 @@ func TestRuleCreate_InvalidCategory(t *testing.T) {
 		t.Errorf("expected 400, got %d", rr.Code)
 	}
 }
-

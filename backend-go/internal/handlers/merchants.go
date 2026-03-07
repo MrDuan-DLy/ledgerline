@@ -37,11 +37,11 @@ func (h *MerchantHandler) Routes(r chi.Router) {
 }
 
 type merchantDBRow struct {
-	ID         int            `db:"id"`
-	Name       string         `db:"name"`
-	Patterns   string         `db:"patterns"`
-	CategoryID sql.NullInt64  `db:"category_id"`
-	CreatedAt  string         `db:"created_at"`
+	ID         int           `db:"id"`
+	Name       string        `db:"name"`
+	Patterns   string        `db:"patterns"`
+	CategoryID sql.NullInt64 `db:"category_id"`
+	CreatedAt  string        `db:"created_at"`
 }
 
 func merchantRowToResponse(r merchantDBRow) models.MerchantResponse {

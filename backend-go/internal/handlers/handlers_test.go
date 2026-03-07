@@ -159,4 +159,3 @@ func parseJSON(t *testing.T, rr *httptest.ResponseRecorder, v interface{}) {
 		t.Fatalf("failed to parse JSON response: %v\nbody: %s", err, rr.Body.String())
 	}
 }
-

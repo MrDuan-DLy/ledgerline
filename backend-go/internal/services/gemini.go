@@ -243,9 +243,9 @@ func DetectDuplicates(db *sqlx.DB, items []map[string]interface{}) []map[string]
 
 		epsilon := 0.02
 		type candidate struct {
-			ID             int    `db:"id"`
-			RawDate        string `db:"raw_date"`
-			RawDescription string `db:"raw_description"`
+			ID             int     `db:"id"`
+			RawDate        string  `db:"raw_date"`
+			RawDescription string  `db:"raw_description"`
 			Amount         float64 `db:"amount"`
 		}
 

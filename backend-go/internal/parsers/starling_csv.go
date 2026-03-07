@@ -38,7 +38,7 @@ var starlingCategoryMap = map[string]string{
 
 func (p *StarlingCSVParser) FileTypes() []string { return []string{".csv"} }
 func (p *StarlingCSVParser) BankID() string      { return "starling" }
-func (p *StarlingCSVParser) BankName() string     { return "Starling Bank" }
+func (p *StarlingCSVParser) BankName() string    { return "Starling Bank" }
 
 func (p *StarlingCSVParser) Parse(content []byte) (ParsedStatement, error) {
 	// Strip BOM

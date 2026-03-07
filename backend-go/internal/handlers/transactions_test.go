@@ -226,4 +226,3 @@ func TestDeleteTransaction(t *testing.T) {
 		t.Error("expected transaction to be deleted")
 	}
 }
-
