@@ -87,7 +87,7 @@ export default function Receipts() {
       if (res.some((item) => item.success)) {
         loadReceipts();
       }
-    } catch (e) {
+    } catch {
       setResults([
         {
           success: false,

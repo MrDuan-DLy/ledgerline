@@ -12,7 +12,6 @@ import {
   ImportSession,
 } from '../api/client';
 import { formatCurrency } from '../utils/format';
-import { useAppConfig } from '../contexts/AppConfig';
 
 export default function Import() {
   const navigate = useNavigate();

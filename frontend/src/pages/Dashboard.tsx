@@ -151,7 +151,7 @@ export default function Dashboard() {
     loadMonthly();
   }, [range.start, range.end, selectedCategory]);
 
-  const daily = series?.daily ?? [];
+  const daily = useMemo(() => series?.daily ?? [], [series?.daily]);
   const buckets = useMemo(() => bucketDaily(daily), [daily]);
 
   const donut = useMemo(() => {

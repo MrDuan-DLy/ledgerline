@@ -35,8 +35,8 @@ export default function Categories() {
     setLoading(true);
     try {
       setCategories(await getCategories());
-    } catch (e: any) {
-      toast(e.message, 'error');
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Failed to load', 'error');
     }
     setLoading(false);
   };
@@ -57,8 +57,8 @@ export default function Categories() {
       setNewParent('');
       load();
       toast('Category created', 'success');
-    } catch (e: any) {
-      toast(e.message, 'error');
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Failed to create', 'error');
     }
   };
 
@@ -68,8 +68,8 @@ export default function Categories() {
       await deleteCategory(id);
       load();
       toast(`Deleted "${name}"`, 'success');
-    } catch (e: any) {
-      toast(e.message, 'error');
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Failed to delete', 'error');
     }
   };
 

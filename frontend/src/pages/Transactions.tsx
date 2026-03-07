@@ -16,7 +16,7 @@ import {
   Summary,
   Receipt,
 } from '../api/client';
-import { formatExpense, formatDate, formatCurrency } from '../utils/format';
+import { formatExpense, formatDate } from '../utils/format';
 import { useAppConfig } from '../contexts/AppConfig';
 
 export default function Transactions() {
@@ -67,6 +67,7 @@ export default function Transactions() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, unclassifiedOnly, showExcluded, search, statementId]);
 
   const handleCategoryChange = async (txnId: number, categoryId: number) => {

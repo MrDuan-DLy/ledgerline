@@ -36,8 +36,8 @@ export default function Budgets() {
       setBudgets(b);
       setStatus(s);
       setCategories(c);
-    } catch (e: any) {
-      toast(e.message, 'error');
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Failed to load', 'error');
     }
     setLoading(false);
   };
@@ -57,8 +57,8 @@ export default function Budgets() {
       setNewLimit('');
       load();
       toast('Budget created', 'success');
-    } catch (e: any) {
-      toast(e.message, 'error');
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Failed to create', 'error');
     }
   };
 
@@ -69,8 +69,8 @@ export default function Budgets() {
       setEditId(null);
       load();
       toast('Budget updated', 'success');
-    } catch (e: any) {
-      toast(e.message, 'error');
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Failed to update', 'error');
     }
   };
 
@@ -80,8 +80,8 @@ export default function Budgets() {
       await deleteBudget(id);
       load();
       toast('Budget removed', 'success');
-    } catch (e: any) {
-      toast(e.message, 'error');
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Failed to delete', 'error');
     }
   };
 
