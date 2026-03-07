@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -255,6 +254,3 @@ func budgetRowToResponse(row models.BudgetRow) models.BudgetResponse {
 	return resp
 }
 
-func formatMoney(v float64) string {
-	return fmt.Sprintf("%.2f", v)
-}

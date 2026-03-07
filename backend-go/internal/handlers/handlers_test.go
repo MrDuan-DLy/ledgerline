@@ -160,4 +160,3 @@ func parseJSON(t *testing.T, rr *httptest.ResponseRecorder, v interface{}) {
 	}
 }
 
-func strPtr(s string) *string { return &s }

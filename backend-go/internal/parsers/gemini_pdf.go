@@ -19,7 +19,7 @@ func NewGeminiPDFParser(extractFn PDFExtractFunc) *GeminiPDFParser {
 
 func (p *GeminiPDFParser) FileTypes() []string { return []string{".pdf"} }
 func (p *GeminiPDFParser) BankID() string      { return "gemini-pdf" }
-func (p *GeminiPDFParser) BankName() string     { return "AI-Extracted PDF" }
+func (p *GeminiPDFParser) BankName() string    { return "AI-Extracted PDF" }
 
 func (p *GeminiPDFParser) Parse(content []byte) (ParsedStatement, error) {
 	ok, data, errMsg := p.extract(content)

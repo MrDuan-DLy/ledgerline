@@ -221,10 +221,7 @@ func (s *ReceiptService) ConfirmReceipt(receiptID int, req models.ReceiptConfirm
 		rDate = time.Now().Format("2006-01-02")
 	}
 	total := floatPtrOrDefault(req.TotalAmount, totalAmount)
-	curr := strPtrOrDefault(req.Currency, currency)
-	if curr == "" {
-		curr = "GBP"
-	}
+	_ = strPtrOrDefault(req.Currency, currency) // currency resolved for future use
 
 	if total == 0 || merchant == "" {
 		return 0, fmt.Errorf("receipt missing required fields")

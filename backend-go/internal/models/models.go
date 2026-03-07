@@ -19,16 +19,16 @@ type Account struct {
 // ---------- Statement ----------
 
 type Statement struct {
-	ID             int            `db:"id" json:"id"`
-	AccountID      string         `db:"account_id" json:"account_id"`
-	Filename       string         `db:"filename" json:"filename"`
-	FileHash       string         `db:"file_hash" json:"file_hash"`
-	PeriodStart    string         `db:"period_start" json:"period_start"`
-	PeriodEnd      string         `db:"period_end" json:"period_end"`
+	ID             int             `db:"id" json:"id"`
+	AccountID      string          `db:"account_id" json:"account_id"`
+	Filename       string          `db:"filename" json:"filename"`
+	FileHash       string          `db:"file_hash" json:"file_hash"`
+	PeriodStart    string          `db:"period_start" json:"period_start"`
+	PeriodEnd      string          `db:"period_end" json:"period_end"`
 	OpeningBalance sql.NullFloat64 `db:"opening_balance" json:"opening_balance"`
 	ClosingBalance sql.NullFloat64 `db:"closing_balance" json:"closing_balance"`
-	RawText        sql.NullString `db:"raw_text" json:"raw_text"`
-	ImportedAt     time.Time      `db:"imported_at" json:"imported_at"`
+	RawText        sql.NullString  `db:"raw_text" json:"raw_text"`
+	ImportedAt     time.Time       `db:"imported_at" json:"imported_at"`
 }
 
 // ---------- Category ----------
@@ -74,14 +74,14 @@ type TransactionRow struct {
 // ---------- Rule ----------
 
 type Rule struct {
-	ID              int            `db:"id" json:"id"`
-	Pattern         string         `db:"pattern" json:"pattern"`
-	PatternType     string         `db:"pattern_type" json:"pattern_type"`
-	CategoryID      int            `db:"category_id" json:"category_id"`
-	Priority        int            `db:"priority" json:"priority"`
-	IsActive        bool           `db:"is_active" json:"is_active"`
+	ID               int           `db:"id" json:"id"`
+	Pattern          string        `db:"pattern" json:"pattern"`
+	PatternType      string        `db:"pattern_type" json:"pattern_type"`
+	CategoryID       int           `db:"category_id" json:"category_id"`
+	Priority         int           `db:"priority" json:"priority"`
+	IsActive         bool          `db:"is_active" json:"is_active"`
 	CreatedFromTxnID sql.NullInt64 `db:"created_from_txn_id" json:"created_from_txn_id"`
-	CreatedAt       time.Time      `db:"created_at" json:"created_at"`
+	CreatedAt        time.Time     `db:"created_at" json:"created_at"`
 }
 
 // RuleRow includes the joined category name.
@@ -105,22 +105,22 @@ type AuditLog struct {
 // ---------- Receipt ----------
 
 type Receipt struct {
-	ID                    int             `db:"id" json:"id"`
-	ImagePath             string          `db:"image_path" json:"image_path"`
-	ImageHash             string          `db:"image_hash" json:"image_hash"`
-	MerchantName          sql.NullString  `db:"merchant_name" json:"merchant_name"`
-	ReceiptDate           sql.NullString  `db:"receipt_date" json:"receipt_date"`
-	ReceiptTime           sql.NullString  `db:"receipt_time" json:"receipt_time"`
-	TotalAmount           sql.NullFloat64 `db:"total_amount" json:"total_amount"`
-	Currency              sql.NullString  `db:"currency" json:"currency"`
-	PaymentMethod         sql.NullString  `db:"payment_method" json:"payment_method"`
-	Status                string          `db:"status" json:"status"`
-	OcrRaw                sql.NullString  `db:"ocr_raw" json:"ocr_raw"`
-	OcrJSON               sql.NullString  `db:"ocr_json" json:"ocr_json"`
-	TransactionID         sql.NullInt64   `db:"transaction_id" json:"transaction_id"`
-	MatchedTransactionID  sql.NullInt64   `db:"matched_transaction_id" json:"matched_transaction_id"`
-	MatchedReason         sql.NullString  `db:"matched_reason" json:"matched_reason"`
-	CreatedAt             time.Time       `db:"created_at" json:"created_at"`
+	ID                   int             `db:"id" json:"id"`
+	ImagePath            string          `db:"image_path" json:"image_path"`
+	ImageHash            string          `db:"image_hash" json:"image_hash"`
+	MerchantName         sql.NullString  `db:"merchant_name" json:"merchant_name"`
+	ReceiptDate          sql.NullString  `db:"receipt_date" json:"receipt_date"`
+	ReceiptTime          sql.NullString  `db:"receipt_time" json:"receipt_time"`
+	TotalAmount          sql.NullFloat64 `db:"total_amount" json:"total_amount"`
+	Currency             sql.NullString  `db:"currency" json:"currency"`
+	PaymentMethod        sql.NullString  `db:"payment_method" json:"payment_method"`
+	Status               string          `db:"status" json:"status"`
+	OcrRaw               sql.NullString  `db:"ocr_raw" json:"ocr_raw"`
+	OcrJSON              sql.NullString  `db:"ocr_json" json:"ocr_json"`
+	TransactionID        sql.NullInt64   `db:"transaction_id" json:"transaction_id"`
+	MatchedTransactionID sql.NullInt64   `db:"matched_transaction_id" json:"matched_transaction_id"`
+	MatchedReason        sql.NullString  `db:"matched_reason" json:"matched_reason"`
+	CreatedAt            time.Time       `db:"created_at" json:"created_at"`
 }
 
 // ---------- ReceiptItem ----------
@@ -137,11 +137,11 @@ type ReceiptItem struct {
 // ---------- Merchant ----------
 
 type Merchant struct {
-	ID         int            `db:"id" json:"id"`
-	Name       string         `db:"name" json:"name"`
-	Patterns   string         `db:"patterns" json:"patterns"`
-	CategoryID sql.NullInt64  `db:"category_id" json:"category_id"`
-	CreatedAt  time.Time      `db:"created_at" json:"created_at"`
+	ID         int           `db:"id" json:"id"`
+	Name       string        `db:"name" json:"name"`
+	Patterns   string        `db:"patterns" json:"patterns"`
+	CategoryID sql.NullInt64 `db:"category_id" json:"category_id"`
+	CreatedAt  time.Time     `db:"created_at" json:"created_at"`
 }
 
 // ---------- Budget ----------
@@ -219,25 +219,25 @@ type CategoryResponse struct {
 
 // RuleCreate matches the Python RuleCreate schema.
 type RuleCreate struct {
-	Pattern         string `json:"pattern"`
-	PatternType     string `json:"pattern_type"`
-	CategoryID      int    `json:"category_id"`
-	Priority        int    `json:"priority"`
-	IsActive        *bool  `json:"is_active"`
-	CreatedFromTxnID *int  `json:"created_from_txn_id"`
+	Pattern          string `json:"pattern"`
+	PatternType      string `json:"pattern_type"`
+	CategoryID       int    `json:"category_id"`
+	Priority         int    `json:"priority"`
+	IsActive         *bool  `json:"is_active"`
+	CreatedFromTxnID *int   `json:"created_from_txn_id"`
 }
 
 // RuleResponse matches the Python RuleResponse schema.
 type RuleResponse struct {
-	ID              int     `json:"id"`
-	Pattern         string  `json:"pattern"`
-	PatternType     string  `json:"pattern_type"`
-	CategoryID      int     `json:"category_id"`
-	Priority        int     `json:"priority"`
-	IsActive        bool    `json:"is_active"`
-	CategoryName    *string `json:"category_name"`
-	CreatedFromTxnID *int   `json:"created_from_txn_id"`
-	CreatedAt       string  `json:"created_at"`
+	ID               int     `json:"id"`
+	Pattern          string  `json:"pattern"`
+	PatternType      string  `json:"pattern_type"`
+	CategoryID       int     `json:"category_id"`
+	Priority         int     `json:"priority"`
+	IsActive         bool    `json:"is_active"`
+	CategoryName     *string `json:"category_name"`
+	CreatedFromTxnID *int    `json:"created_from_txn_id"`
+	CreatedAt        string  `json:"created_at"`
 }
 
 // TransactionUpdate matches the Python TransactionUpdate schema.
@@ -301,11 +301,11 @@ type BulkExcludeRequest struct {
 
 // StatsSummary matches the Python summary endpoint.
 type StatsSummary struct {
-	TotalExpenses  float64 `json:"total_expenses"`
-	TotalIncome    float64 `json:"total_income"`
-	AvgDaily       float64 `json:"avg_daily"`
-	Count          int     `json:"count"`
-	Unclassified   int     `json:"unclassified"`
+	TotalExpenses float64 `json:"total_expenses"`
+	TotalIncome   float64 `json:"total_income"`
+	AvgDaily      float64 `json:"avg_daily"`
+	Count         int     `json:"count"`
+	Unclassified  int     `json:"unclassified"`
 }
 
 // DailySeriesPoint matches Python DailySeriesPoint.
@@ -330,8 +330,8 @@ type CategoryTotal struct {
 
 // StatsSeriesResponse matches Python StatsSeriesResponse.
 type StatsSeriesResponse struct {
-	StartDate  *string          `json:"start_date"`
-	EndDate    *string          `json:"end_date"`
+	StartDate  *string            `json:"start_date"`
+	EndDate    *string            `json:"end_date"`
 	Daily      []DailySeriesPoint `json:"daily"`
 	Categories []CategoryTotal    `json:"categories"`
 }
@@ -416,12 +416,12 @@ type StatementResponse struct {
 
 // ImportResult matches the Python ImportResult.
 type ImportResult struct {
-	Success      bool   `json:"success"`
-	StatementID  *int   `json:"statement_id"`
-	Imported     int    `json:"imported"`
-	Duplicates   int    `json:"duplicates"`
-	Classified   int    `json:"classified"`
-	Message      string `json:"message"`
+	Success     bool   `json:"success"`
+	StatementID *int   `json:"statement_id"`
+	Imported    int    `json:"imported"`
+	Duplicates  int    `json:"duplicates"`
+	Classified  int    `json:"classified"`
+	Message     string `json:"message"`
 }
 
 // ReceiptItemResponse matches the Python ReceiptItemResponse.
@@ -497,23 +497,23 @@ type ImportItemUpdate struct {
 
 // ImportItemResponse matches Python ImportItemResponse.
 type ImportItemResponse struct {
-	ID                            int      `json:"id"`
-	SessionID                     string   `json:"session_id"`
-	PageNum                       *int     `json:"page_num"`
-	ExtractedDate                 *string  `json:"extracted_date"`
-	ExtractedDescription          *string  `json:"extracted_description"`
-	ExtractedAmount               *float64 `json:"extracted_amount"`
-	ExtractedBalance              *float64 `json:"extracted_balance"`
-	ExtractedMerchant             *string  `json:"extracted_merchant"`
-	ExtractedItemsJSON            *string  `json:"extracted_items_json"`
-	Status                        string   `json:"status"`
-	DuplicateOfID                 *int64   `json:"duplicate_of_id"`
-	DuplicateScore                *float64 `json:"duplicate_score"`
-	DuplicateReason               *string  `json:"duplicate_reason"`
+	ID                              int      `json:"id"`
+	SessionID                       string   `json:"session_id"`
+	PageNum                         *int     `json:"page_num"`
+	ExtractedDate                   *string  `json:"extracted_date"`
+	ExtractedDescription            *string  `json:"extracted_description"`
+	ExtractedAmount                 *float64 `json:"extracted_amount"`
+	ExtractedBalance                *float64 `json:"extracted_balance"`
+	ExtractedMerchant               *string  `json:"extracted_merchant"`
+	ExtractedItemsJSON              *string  `json:"extracted_items_json"`
+	Status                          string   `json:"status"`
+	DuplicateOfID                   *int64   `json:"duplicate_of_id"`
+	DuplicateScore                  *float64 `json:"duplicate_score"`
+	DuplicateReason                 *string  `json:"duplicate_reason"`
 	DuplicateTransactionDate        *string  `json:"duplicate_transaction_date"`
 	DuplicateTransactionDescription *string  `json:"duplicate_transaction_description"`
 	DuplicateTransactionAmount      *float64 `json:"duplicate_transaction_amount"`
-	CreatedAt                     string   `json:"created_at"`
+	CreatedAt                       string   `json:"created_at"`
 }
 
 // ImportSessionResponse matches Python ImportSessionResponse.

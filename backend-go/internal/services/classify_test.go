@@ -335,7 +335,7 @@ func TestClassifyService_InvalidateCache(t *testing.T) {
 		('UBER', 'contains', 2, 5, 1)`)
 
 	// Without invalidation, new rule shouldn't be picked up (rules are cached)
-	catID2, source := svc.Classify("UBER TRIP")
+	catID2, _ := svc.Classify("UBER TRIP")
 	if catID2 != nil {
 		// The cache still has old rules, so UBER won't match
 		t.Logf("NOTE: cache was auto-reloaded, catID=%d", *catID2)
@@ -343,14 +343,14 @@ func TestClassifyService_InvalidateCache(t *testing.T) {
 
 	// Invalidate and re-classify
 	svc.InvalidateCache()
-	catID3, source := svc.Classify("UBER TRIP")
+	catID3, source2 := svc.Classify("UBER TRIP")
 	if catID3 == nil {
 		t.Fatal("expected UBER to match after cache invalidation")
 	}
 	if *catID3 != 2 {
 		t.Errorf("expected category 2 (Transport), got %d", *catID3)
 	}
-	if source != "rule" {
-		t.Errorf("expected source 'rule', got %q", source)
+	if source2 != "rule" {
+		t.Errorf("expected source 'rule', got %q", source2)
 	}
 }
