@@ -1,9 +1,17 @@
 .idea/
 __pycache__/
 *.pyc
-.pytest_cache/
+
+# Go compiled binary
+backend-go/server
 
 data/
+
+# Sensitive data directories (explicit for clarity)
+data/receipts/
+data/uploads/
+data/page_images/
+
 frontend/node_modules/
 frontend/dist/
 
@@ -16,3 +24,8 @@ frontend/dist/
 
 .DS_Store
 .env
+PLAN.md
+
+# User configs (examples tracked in git)
+configs/*.yaml
+!configs/examples/

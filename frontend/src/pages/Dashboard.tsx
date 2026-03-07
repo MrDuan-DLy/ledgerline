@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   getSummary,
   getStatsSeries,
@@ -6,36 +6,26 @@ import {
   getTransactions,
   getStatements,
   getCategories,
+  getBudgetStatus,
   Summary,
   StatsSeriesResponse,
   MonthlySpendResponse,
   Transaction,
   Statement,
   Category,
+  BudgetStatusResponse,
 } from '../api/client';
-
-const CHART_COLORS = ['#2D6A4F', '#3B8B80', '#E09F3E', '#D1495B', '#6D4C41', '#7A6C5D'];
+import DateRangePicker, { type RangePreset } from '../components/DateRangePicker';
+import KpiSparkline from '../components/charts/KpiSparkline';
+import BalanceTrajectory from '../components/charts/BalanceTrajectory';
+import CashflowRhythm, { type Bucket } from '../components/charts/CashflowRhythm';
+import MonthlySpend from '../components/charts/MonthlySpend';
+import ExpenseMix from '../components/charts/ExpenseMix';
+import MerchantDrilldown from '../components/charts/MerchantDrilldown';
+import { formatExpense, formatDate, formatCurrency } from '../utils/format';
+import { useAppConfig } from '../contexts/AppConfig';
 
 const toIsoDate = (d: Date) => d.toISOString().split('T')[0];
-
-const formatCurrency = (value: number) => {
-  const sign = value < 0 ? '-' : '';
-  return `${sign}£${Math.abs(value).toFixed(2)}`;
-};
-
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-
-type Bucket = {
-  label: string;
-  income: number;
-  expenses: number;
-  net: number;
-};
 
 const bucketDaily = (daily: StatsSeriesResponse['daily']): Bucket[] => {
   if (daily.length <= 24) {
@@ -55,18 +45,39 @@ const bucketDaily = (daily: StatsSeriesResponse['daily']): Bucket[] => {
     const income = slice.reduce((sum, item) => sum + item.income, 0);
     const expenses = slice.reduce((sum, item) => sum + item.expenses, 0);
     const net = slice.reduce((sum, item) => sum + item.net, 0);
-    buckets.push({
-      label: slice[0].date,
-      income,
-      expenses,
-      net,
-    });
+    buckets.push({ label: slice[0].date, income, expenses, net });
   }
 
   return buckets;
 };
 
+function presetToRange(preset: RangePreset, customStart: string, customEnd: string) {
+  if (preset === 'custom') return { start: customStart, end: customEnd };
+
+  const end = new Date();
+  const start = new Date();
+  switch (preset) {
+    case '30d':
+      start.setDate(end.getDate() - 30);
+      break;
+    case '90d':
+      start.setDate(end.getDate() - 90);
+      break;
+    case '6m':
+      start.setMonth(end.getMonth() - 6);
+      break;
+    case '1y':
+      start.setFullYear(end.getFullYear() - 1);
+      break;
+    case 'all':
+      start.setFullYear(2000);
+      break;
+  }
+  return { start: toIsoDate(start), end: toIsoDate(end) };
+}
+
 export default function Dashboard() {
+  const { currencySymbol } = useAppConfig();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [series, setSeries] = useState<StatsSeriesResponse | null>(null);
   const [monthly, setMonthly] = useState<MonthlySpendResponse | null>(null);
@@ -74,39 +85,51 @@ export default function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
   const [recent, setRecent] = useState<Transaction[]>([]);
   const [statements, setStatements] = useState<Statement[]>([]);
+  const [budgetStatus, setBudgetStatus] = useState<BudgetStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [lineHoverIndex, setLineHoverIndex] = useState<number | null>(null);
-  const [barHoverIndex, setBarHoverIndex] = useState<number | null>(null);
-  const [monthlyHoverIndex, setMonthlyHoverIndex] = useState<number | null>(null);
 
-  const range = useMemo(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - 90);
-    return { start: toIsoDate(start), end: toIsoDate(end) };
+  // Date range state
+  const [rangePreset, setRangePreset] = useState<RangePreset>('90d');
+  const [customStart, setCustomStart] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 90);
+    return toIsoDate(d);
+  });
+  const [customEnd, setCustomEnd] = useState(() => toIsoDate(new Date()));
+
+  const range = useMemo(
+    () => presetToRange(rangePreset, customStart, customEnd),
+    [rangePreset, customStart, customEnd],
+  );
+
+  const handleCustomChange = useCallback((start: string, end: string) => {
+    setCustomStart(start);
+    setCustomEnd(end);
   }, []);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [summaryRes, seriesRes, txnRes, stmtRes] = await Promise.all([
+        const [summaryRes, seriesRes, txnRes, stmtRes, budgetRes] = await Promise.all([
           getSummary(range.start, range.end),
           getStatsSeries({ start_date: range.start, end_date: range.end }),
-          getTransactions({ page: 1, page_size: 8 }),
+          getTransactions({ page: 1, page_size: 8, start_date: range.start, end_date: range.end }),
           getStatements(),
+          getBudgetStatus(),
         ]);
         setSummary(summaryRes);
         setSeries(seriesRes);
         setRecent(txnRes.items);
         setStatements(stmtRes.slice(0, 5));
+        setBudgetStatus(budgetRes);
       } catch (e) {
         console.error(e);
       }
       setLoading(false);
     };
     load();
-  }, [range.end, range.start]);
+  }, [range.start, range.end]);
 
   useEffect(() => {
     const loadMonthly = async () => {
@@ -126,79 +149,18 @@ export default function Dashboard() {
       }
     };
     loadMonthly();
-  }, [range.end, range.start, selectedCategory]);
+  }, [range.start, range.end, selectedCategory]);
 
   const daily = series?.daily ?? [];
   const buckets = useMemo(() => bucketDaily(daily), [daily]);
 
-  const lineData = useMemo(() => {
-    if (daily.length < 2) return { path: '', points: [] as { x: number; y: number }[] };
-    const values = daily.map((item) => item.cumulative);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const width = 600;
-    const height = 220;
-    const pad = 24;
-    const rangeVal = max - min || 1;
-    const points = values.map((value, index) => {
-      const x = pad + (index / (values.length - 1)) * (width - pad * 2);
-      const y = height - pad - ((value - min) / rangeVal) * (height - pad * 2);
-      return { x, y };
-    });
-
-    const path = points
-      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-      .join(' ');
-    return { path, points };
-  }, [daily]);
-
-  const areaPath = useMemo(() => {
-    if (!lineData.path) return '';
-    const width = 600;
-    const height = 220;
-    const pad = 24;
-    return `${lineData.path} L ${width - pad} ${height - pad} L ${pad} ${height - pad} Z`;
-  }, [lineData.path]);
-
-  const monthTicks = useMemo(() => {
-    if (!daily.length) return [];
-    const ticks: { label: string; index: number }[] = [];
-    let lastMonth = '';
-    daily.forEach((item, index) => {
-      const d = new Date(item.date);
-      const label = d.toLocaleDateString('en-GB', { month: 'short' });
-      const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
-      if (monthKey !== lastMonth) {
-        ticks.push({ label, index });
-        lastMonth = monthKey;
-      }
-    });
-    return ticks;
-  }, [daily]);
-
-  const bucketMonthTicks = useMemo(() => {
-    if (!buckets.length) return [];
-    const ticks: { label: string; index: number }[] = [];
-    let lastMonth = '';
-    buckets.forEach((bucket, index) => {
-      const d = new Date(bucket.label);
-      const label = d.toLocaleDateString('en-GB', { month: 'short' });
-      const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
-      if (monthKey !== lastMonth) {
-        ticks.push({ label, index });
-        lastMonth = monthKey;
-      }
-    });
-    return ticks;
-  }, [buckets]);
-
   const donut = useMemo(() => {
-    const categories = (series?.categories ?? [])
+    const cats = (series?.categories ?? [])
       .filter((item) => item.expenses > 0)
       .sort((a, b) => b.expenses - a.expenses);
 
-    const top = categories.slice(0, 5);
-    const rest = categories.slice(5);
+    const top = cats.slice(0, 5);
+    const rest = cats.slice(5);
     if (rest.length) {
       top.push({
         category_id: null,
@@ -214,64 +176,73 @@ export default function Dashboard() {
     return { total, segments: top };
   }, [series?.categories]);
 
-  const monthlySeries = monthly?.series ?? [];
-  const monthlyLine = useMemo(() => {
-    if (!monthlySeries.length) return { path: '', points: [] as { x: number; y: number }[] };
-    const values = monthlySeries.map((item) => item.total_expenses);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const width = 600;
-    const height = 200;
-    const pad = 24;
-    const rangeVal = max - min || 1;
-    const divisor = Math.max(values.length - 1, 1);
-    const points = values.map((value, index) => {
-      const x = pad + (index / divisor) * (width - pad * 2);
-      const y = height - pad - ((value - min) / rangeVal) * (height - pad * 2);
-      return { x, y };
-    });
-    const path = points
-      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-      .join(' ');
-    return { path, points };
-  }, [monthlySeries]);
-
-  const monthlyTicks = useMemo(() => {
-    if (!monthlySeries.length) return [];
-    return monthlySeries.map((item, index) => ({
-      label: item.month,
-      index,
-    }));
-  }, [monthlySeries]);
+  const presetLabel =
+    rangePreset === 'custom'
+      ? `${formatDate(customStart)} - ${formatDate(customEnd)}`
+      : rangePreset === 'all'
+        ? 'All time'
+        : `Last ${rangePreset}`;
 
   return (
     <div className="page">
       <div className="hero panel">
         <div className="hero-text">
-          <p className="eyebrow">Personal Finance</p>
-          <h1>Clarity over cashflow, without the clutter.</h1>
+          <p className="eyebrow">Expense Tracker</p>
+          <h1>Know where every pound goes.</h1>
           <p className="hero-sub">
-            Built for fast statement imports and grounded categorization. Showing the last 90 days.
+            Built for fast statement imports and grounded categorization.
           </p>
         </div>
         <div className="hero-chip">
           <div className="chip-title">Range</div>
-          <div className="chip-value">{formatDate(range.start)} - {formatDate(range.end)}</div>
-          <div className="chip-note">Auto-refresh on import</div>
+          <div className="chip-value">{presetLabel}</div>
         </div>
+      </div>
+
+      <div className="range-sticky">
+        <DateRangePicker
+          preset={rangePreset}
+          onPresetChange={setRangePreset}
+          customStart={customStart}
+          customEnd={customEnd}
+          onCustomChange={handleCustomChange}
+        />
       </div>
 
       <div className="kpi-grid">
         {[
-          { label: 'Total Income', value: summary ? `£${summary.total_income.toFixed(2)}` : '-' },
-          { label: 'Total Expenses', value: summary ? `£${summary.total_expenses.toFixed(2)}` : '-' },
-          { label: 'Net Movement', value: summary ? formatCurrency(summary.net) : '-' },
-          { label: 'Unclassified', value: summary ? summary.unclassified_count.toString() : '-' },
+          {
+            label: 'Total Expenses',
+            value: summary ? `${currencySymbol}${summary.total_expenses.toFixed(2)}` : '-',
+            spark: daily.map((d) => d.expenses),
+            color: '#D1495B',
+          },
+          {
+            label: 'Daily Average',
+            value: summary && daily.length > 0
+              ? `${currencySymbol}${(summary.total_expenses / daily.length).toFixed(2)}`
+              : '-',
+            spark: daily.map((d) => d.expenses),
+            color: '#3B8B80',
+          },
+          {
+            label: 'Transactions',
+            value: summary ? summary.total_transactions.toString() : '-',
+            spark: daily.map((d) => d.count),
+            color: '#2D6A4F',
+          },
+          {
+            label: 'Unclassified',
+            value: summary ? summary.unclassified_count.toString() : '-',
+            spark: [] as number[],
+            color: '#E09F3E',
+          },
         ].map((item, index) => (
           <div className="panel kpi-card reveal" key={item.label} style={{ '--i': index } as CSSProperties}>
             <div className="kpi-label">{item.label}</div>
             <div className="kpi-value">{item.value}</div>
-            <div className="kpi-meta">Last 90 days</div>
+            <div className="kpi-meta">{presetLabel}</div>
+            <KpiSparkline data={item.spark} color={item.color} />
           </div>
         ))}
       </div>
@@ -280,245 +251,43 @@ export default function Dashboard() {
         <div className="panel chart-card">
           <div className="panel-header">
             <div>
-              <div className="panel-title">Balance trajectory</div>
-              <div className="panel-sub">Cumulative net movement by day</div>
+              <div className="panel-title">Spending pace</div>
+              <div className="panel-sub">This month vs last month</div>
             </div>
-            <div className="panel-pill">
-              {lineHoverIndex !== null && daily[lineHoverIndex]
-                ? `${formatDate(daily[lineHoverIndex].date)} · ${formatCurrency(daily[lineHoverIndex].cumulative)}`
-                : `${daily.length} days`}
-            </div>
+            <div className="panel-pill">Monthly</div>
           </div>
-          {daily.length === 0 ? (
-            <div className="empty">No data yet. Import a statement to see movement.</div>
-          ) : (
-            <svg
-              viewBox="0 0 600 220"
-              className="chart-svg chart-hover"
-              onMouseLeave={() => setLineHoverIndex(null)}
-              onMouseMove={(event) => {
-                const rect = (event.currentTarget as SVGSVGElement).getBoundingClientRect();
-                const width = 600;
-                const pad = 24;
-                const ratio = (event.clientX - rect.left) / rect.width;
-                const x = ratio * width;
-                const index = Math.round(((x - pad) / (width - pad * 2)) * (daily.length - 1));
-                if (index >= 0 && index < daily.length) {
-                  setLineHoverIndex(index);
-                }
-              }}
-            >
-              <defs>
-                <linearGradient id="areaFade" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#3B8B80" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="#3B8B80" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d={areaPath} fill="url(#areaFade)" />
-              <path d={lineData.path} fill="none" stroke="#1B4332" strokeWidth="3" strokeLinecap="round" />
-              {lineData.points.map((point, index) => (
-                <circle
-                  key={index}
-                  cx={point.x}
-                  cy={point.y}
-                  r={lineHoverIndex === index ? 5 : 3}
-                  fill={lineHoverIndex === index ? '#D1495B' : '#1B4332'}
-                  opacity={lineHoverIndex === null || lineHoverIndex === index ? 1 : 0.35}
-                />
-              ))}
-              {monthTicks.map((tick) => {
-                const width = 600;
-                const pad = 24;
-                const x = pad + (tick.index / Math.max(daily.length - 1, 1)) * (width - pad * 2);
-                return (
-                  <text
-                    key={tick.label + tick.index}
-                    x={x}
-                    y="210"
-                    className="chart-label"
-                    textAnchor="middle"
-                  >
-                    {tick.label}
-                  </text>
-                );
-              })}
-            </svg>
-          )}
+          <BalanceTrajectory />
         </div>
 
         <div className="panel chart-card">
           <div className="panel-header">
             <div>
-              <div className="panel-title">Cashflow rhythm</div>
-              <div className="panel-sub">Income up, expenses down</div>
+              <div className="panel-title">Daily spending</div>
+              <div className="panel-sub">Spend per day with average</div>
             </div>
-            <div className="panel-pill">
-              {barHoverIndex !== null && buckets[barHoverIndex]
-                ? `${formatDate(buckets[barHoverIndex].label)} · +£${buckets[barHoverIndex].income.toFixed(2)} / -£${buckets[barHoverIndex].expenses.toFixed(2)}`
-                : 'Grouped'}
-            </div>
+            <div className="panel-pill">Grouped</div>
           </div>
-          {buckets.length === 0 ? (
-            <div className="empty">Waiting for transactions.</div>
-          ) : (
-            <svg
-              viewBox="0 0 600 220"
-              className="chart-svg chart-hover"
-              onMouseLeave={() => setBarHoverIndex(null)}
-              onMouseMove={(event) => {
-                const rect = (event.currentTarget as SVGSVGElement).getBoundingClientRect();
-                const width = 600;
-                const pad = 24;
-                const ratio = (event.clientX - rect.left) / rect.width;
-                const x = ratio * width;
-                const barSpace = (width - pad * 2) / buckets.length;
-                const index = Math.floor((x - pad) / barSpace);
-                if (index >= 0 && index < buckets.length) {
-                  setBarHoverIndex(index);
-                }
-              }}
-            >
-              {(() => {
-                const width = 600;
-                const height = 220;
-                const pad = 24;
-                const mid = height / 2;
-                const maxAbs = Math.max(
-                  ...buckets.map((b) => Math.max(b.income, b.expenses, Math.abs(b.net))),
-                  1
-                );
-                const scale = (height / 2 - pad) / maxAbs;
-                const barSpace = (width - pad * 2) / buckets.length;
-                return buckets.map((bucket, index) => {
-                  const x = pad + index * barSpace;
-                  const incomeHeight = bucket.income * scale;
-                  const expenseHeight = bucket.expenses * scale;
-                  const isActive = barHoverIndex === null || barHoverIndex === index;
-                  return (
-                    <g key={bucket.label}>
-                      <rect
-                        x={x + barSpace * 0.15}
-                        y={mid - incomeHeight}
-                        width={barSpace * 0.3}
-                        height={incomeHeight}
-                        fill={isActive ? '#40916C' : '#9BC1B6'}
-                        rx="3"
-                      />
-                      <rect
-                        x={x + barSpace * 0.55}
-                        y={mid}
-                        width={barSpace * 0.3}
-                        height={expenseHeight}
-                        fill={isActive ? '#D1495B' : '#E6A1AB'}
-                        rx="3"
-                      />
-                    </g>
-                  );
-                });
-              })()}
-              <line x1="24" x2="576" y1="110" y2="110" stroke="#DAD2BC" strokeWidth="1" />
-              {bucketMonthTicks.map((tick) => {
-                const width = 600;
-                const pad = 24;
-                const barSpace = (width - pad * 2) / buckets.length;
-                const x = pad + tick.index * barSpace + barSpace * 0.1;
-                return (
-                  <text
-                    key={tick.label + tick.index}
-                    x={x}
-                    y="210"
-                    className="chart-label"
-                    textAnchor="middle"
-                  >
-                    {tick.label}
-                  </text>
-                );
-              })}
-            </svg>
-          )}
+          <CashflowRhythm buckets={buckets} />
         </div>
       </div>
 
       <div className="panel chart-card monthly-chart">
-          <div className="panel-header">
-            <div>
-              <div className="panel-title">Monthly spend</div>
-              <div className="panel-sub">Track a category month by month</div>
-            </div>
-            <div className="panel-pill">
-              {monthlyHoverIndex !== null && monthlySeries[monthlyHoverIndex]
-                ? `${monthlySeries[monthlyHoverIndex].month} · £${monthlySeries[monthlyHoverIndex].total_expenses.toFixed(2)}`
-                : 'Monthly'}
-            </div>
+        <div className="panel-header">
+          <div>
+            <div className="panel-title">Monthly spend</div>
+            <div className="panel-sub">Track a category month by month</div>
           </div>
-          <div className="monthly-controls">
-            <label>
-              Category
-              <select
-                className="table-select"
-                value={selectedCategory === 'all' ? 'all' : selectedCategory}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setSelectedCategory(value === 'all' ? 'all' : Number(value));
-                }}
-              >
-                <option value="all">All expenses</option>
-                {categories.filter((cat) => cat.is_expense).map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {monthlySeries.length === 0 ? (
-            <div className="empty">No monthly data yet.</div>
-          ) : (
-            <svg
-              viewBox="0 0 600 200"
-              className="chart-svg chart-hover"
-              onMouseLeave={() => setMonthlyHoverIndex(null)}
-              onMouseMove={(event) => {
-                const rect = (event.currentTarget as SVGSVGElement).getBoundingClientRect();
-                const width = 600;
-                const pad = 24;
-                const ratio = (event.clientX - rect.left) / rect.width;
-                const x = ratio * width;
-                const index = Math.round(((x - pad) / (width - pad * 2)) * (monthlySeries.length - 1));
-                if (index >= 0 && index < monthlySeries.length) {
-                  setMonthlyHoverIndex(index);
-                }
-              }}
-            >
-              <path d={monthlyLine.path} fill="none" stroke="#3B8B80" strokeWidth="3" />
-              {monthlyLine.points.map((point, index) => (
-                <circle
-                  key={index}
-                  cx={point.x}
-                  cy={point.y}
-                  r={monthlyHoverIndex === index ? 5 : 3}
-                  fill={monthlyHoverIndex === index ? '#E09F3E' : '#3B8B80'}
-                  opacity={monthlyHoverIndex === null || monthlyHoverIndex === index ? 1 : 0.4}
-                />
-              ))}
-              {monthlyTicks.map((tick) => {
-                const width = 600;
-                const pad = 24;
-                const x = pad + (tick.index / Math.max(monthlySeries.length - 1, 1)) * (width - pad * 2);
-                const label = tick.label.split('-')[1];
-                return (
-                  <text
-                    key={tick.label}
-                    x={x}
-                    y="188"
-                    className="chart-label"
-                    textAnchor="middle"
-                  >
-                    {label}
-                  </text>
-                );
-              })}
-            </svg>
-          )}
+          <div className="panel-pill">Monthly</div>
+        </div>
+        <MonthlySpend
+          series={monthly?.series ?? []}
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+        />
       </div>
+
+      <MerchantDrilldown rangeStart={range.start} rangeEnd={range.end} />
 
       <div className="grid-secondary">
         <div className="panel chart-card">
@@ -529,61 +298,54 @@ export default function Dashboard() {
             </div>
             <div className="panel-pill">Top 5</div>
           </div>
-          {donut.total === 0 ? (
-            <div className="empty">No expenses in range.</div>
-          ) : (
-            <div className="donut-wrap">
-              <div className="donut-chart">
-                <svg viewBox="0 0 120 120" className="donut">
-                  <circle cx="60" cy="60" r="46" fill="none" stroke="#EDE6DB" strokeWidth="16" />
-                  {(() => {
-                    const radius = 46;
-                    const circumference = 2 * Math.PI * radius;
-                    let offset = 0;
-                    return donut.segments.map((segment, index) => {
-                      const value = segment.expenses;
-                      const dash = (value / donut.total) * circumference;
-                      const strokeDasharray = `${dash} ${circumference - dash}`;
-                      const strokeDashoffset = -offset;
-                      offset += dash;
-                      return (
-                        <circle
-                          key={segment.category_name}
-                          cx="60"
-                          cy="60"
-                          r={radius}
-                          fill="none"
-                          stroke={CHART_COLORS[index % CHART_COLORS.length]}
-                          strokeWidth="16"
-                          strokeDasharray={strokeDasharray}
-                          strokeDashoffset={strokeDashoffset}
-                          strokeLinecap="round"
-                          transform="rotate(-90 60 60)"
-                        />
-                      );
-                    });
-                  })()}
-                </svg>
-                <div className="donut-center">
-                  <div className="donut-label">Spend</div>
-                  <div className="donut-value">£{donut.total.toFixed(2)}</div>
-                </div>
-              </div>
-              <div className="donut-legend">
-                {donut.segments.map((segment, index) => (
-                  <div className="legend-row" key={segment.category_name}>
-                    <span
-                      className="legend-dot"
-                      style={{ background: CHART_COLORS[index % CHART_COLORS.length] }}
-                    />
-                    <span className="legend-name">{segment.category_name}</span>
-                    <span className="legend-value">£{segment.expenses.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <ExpenseMix categories={donut.segments} total={donut.total} />
         </div>
+
+        {budgetStatus && budgetStatus.items.length > 0 && (
+          <div className="panel chart-card">
+            <div className="panel-header">
+              <div>
+                <div className="panel-title">Budget tracker</div>
+                <div className="panel-sub">{budgetStatus.month}</div>
+              </div>
+              <div className="panel-pill">{budgetStatus.items.length} budgets</div>
+            </div>
+            <div className="list">
+              {budgetStatus.items.map((item) => {
+                const over = item.percent > 100;
+                return (
+                  <div key={item.category_id} className="list-row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                    <div style={{ flex: 1, minWidth: 100 }}>
+                      <div className="list-title">{item.category_name}</div>
+                      <div className="list-sub">
+                        {currencySymbol}{item.spent.toFixed(2)} / {currencySymbol}{item.monthly_limit.toFixed(2)}
+                      </div>
+                    </div>
+                    <div style={{ flex: 2, minWidth: 120, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className="budget-bar">
+                        <div
+                          className={`budget-fill${over ? ' budget-over' : ''}`}
+                          style={{ width: `${Math.min(item.percent, 100)}%` }}
+                        />
+                      </div>
+                      <span
+                        className="list-sub"
+                        style={{
+                          minWidth: 36,
+                          textAlign: 'right',
+                          color: over ? 'var(--accent-rose)' : undefined,
+                          fontWeight: over ? 600 : undefined,
+                        }}
+                      >
+                        {item.percent.toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="panel chart-card">
           <div className="panel-header">
@@ -600,8 +362,8 @@ export default function Dashboard() {
                   <div className="list-title">{txn.raw_description}</div>
                   <div className="list-sub">{formatDate(txn.raw_date)}</div>
                 </div>
-                <div className={`list-amount ${txn.amount < 0 ? 'neg' : 'pos'}`}>
-                  {formatCurrency(txn.amount)}
+                <div className={`list-amount${txn.amount > 0 ? ' pos' : ''}`}>
+                  {formatExpense(txn.amount, currencySymbol)}
                 </div>
               </div>
             ))}
@@ -627,7 +389,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="list-meta">
-                  {stmt.closing_balance !== null ? `£${stmt.closing_balance.toFixed(2)}` : '-'}
+                  {stmt.closing_balance !== null ? formatCurrency(stmt.closing_balance, currencySymbol) : '-'}
                 </div>
               </div>
             ))}

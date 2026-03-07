@@ -1,0 +1,34 @@
+categories:
+  # Non-expense
+  - name: Income
+    is_expense: false
+  - name: Transfer In
+    is_expense: false
+
+  # Core expense categories
+  - name: Housing
+    is_expense: true
+  - name: Groceries
+    is_expense: true
+  - name: Eating Out
+    is_expense: true
+  - name: Transport
+    is_expense: true
+  - name: Shopping
+    is_expense: true
+  - name: Subscriptions
+    is_expense: true
+  - name: Entertainment
+    is_expense: true
+  - name: Health
+    is_expense: true
+  - name: Travel
+    is_expense: true
+  - name: Education
+    is_expense: true
+  - name: Transfer Out
+    is_expense: true
+  - name: Fees & Charges
+    is_expense: true
+  - name: Other
+    is_expense: true

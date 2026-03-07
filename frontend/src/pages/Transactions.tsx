@@ -1,18 +1,27 @@
 import { useState, useEffect, Fragment } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   getTransactions,
   getCategories,
   getSummary,
   updateTransaction,
+  deleteTransaction,
   bulkClassify,
+  bulkDelete,
+  bulkExclude,
   getReceiptByTransaction,
+  updateReceiptItem,
   Transaction,
   Category,
   Summary,
   Receipt,
 } from '../api/client';
+import { formatExpense, formatDate, formatCurrency } from '../utils/format';
+import { useAppConfig } from '../contexts/AppConfig';
 
 export default function Transactions() {
+  const { currencySymbol } = useAppConfig();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -22,14 +31,27 @@ export default function Transactions() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [unclassifiedOnly, setUnclassifiedOnly] = useState(false);
   const [search, setSearch] = useState('');
+  const [showExcluded, setShowExcluded] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [receiptMap, setReceiptMap] = useState<Record<number, Receipt | null | undefined>>({});
+  const [editTxnId, setEditTxnId] = useState<number | null>(null);
+  const [txnDrafts, setTxnDrafts] = useState<Record<number, { date: string; description: string }>>({});
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [itemDrafts, setItemDrafts] = useState<Record<number, { name: string; line_total: string }>>({});
+
+  const statementId = searchParams.get('statement_id') ? Number(searchParams.get('statement_id')) : undefined;
+
+  const clearStatementFilter = () => {
+    searchParams.delete('statement_id');
+    setSearchParams(searchParams);
+    setPage(1);
+  };
 
   const loadData = async () => {
     setLoading(true);
     try {
       const [txnRes, catRes, sumRes] = await Promise.all([
-        getTransactions({ page, page_size: 50, unclassified_only: unclassifiedOnly, search }),
+        getTransactions({ page, page_size: 50, unclassified_only: unclassifiedOnly, hide_excluded: !showExcluded, search, statement_id: statementId }),
         getCategories(),
         getSummary(),
       ]);
@@ -45,10 +67,31 @@ export default function Transactions() {
 
   useEffect(() => {
     loadData();
-  }, [page, unclassifiedOnly, search]);
+  }, [page, unclassifiedOnly, showExcluded, search, statementId]);
 
   const handleCategoryChange = async (txnId: number, categoryId: number) => {
     await updateTransaction(txnId, { category_id: categoryId });
+    loadData();
+  };
+
+  const handleDelete = async (txnId: number) => {
+    if (!confirm('Delete this transaction?')) return;
+    await deleteTransaction(txnId);
+    loadData();
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} selected transaction(s)?`)) return;
+    await bulkDelete(Array.from(selectedIds));
+    setSelectedIds(new Set());
+    loadData();
+  };
+
+  const handleBulkExclude = async (exclude: boolean) => {
+    if (selectedIds.size === 0) return;
+    await bulkExclude(Array.from(selectedIds), exclude);
+    setSelectedIds(new Set());
     loadData();
   };
 
@@ -84,25 +127,43 @@ export default function Transactions() {
     }
   };
 
+  const startEditTxn = (txn: Transaction) => {
+    setEditTxnId(txn.id);
+    setTxnDrafts((prev) => ({
+      ...prev,
+      [txn.id]: {
+        date: txn.effective_date || txn.raw_date,
+        description: txn.description || txn.raw_description,
+      },
+    }));
+  };
+
+  const saveTxn = async (txn: Transaction) => {
+    const draft = txnDrafts[txn.id];
+    if (!draft) return;
+    await updateTransaction(txn.id, {
+      effective_date: draft.date,
+      description: draft.description,
+    });
+    setEditTxnId(null);
+    loadData();
+  };
+
+  const cancelEditTxn = () => {
+    setEditTxnId(null);
+  };
+
+  const refreshReceipt = async (txnId: number) => {
+    const receipt = await getReceiptByTransaction(txnId);
+    setReceiptMap((prev) => ({ ...prev, [txnId]: receipt }));
+  };
+
   const selectAll = () => {
     if (selectedIds.size === transactions.length) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(transactions.map(t => t.id)));
     }
-  };
-
-  const formatAmount = (amount: number) => {
-    const abs = Math.abs(amount).toFixed(2);
-    return amount < 0 ? `-£${abs}` : `£${abs}`;
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
   };
 
   return (
@@ -115,6 +176,15 @@ export default function Transactions() {
         <div className="page-note">Changes save instantly. Manual tags override rules.</div>
       </div>
 
+      {statementId && (
+        <div className="panel" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+          <span>Showing transactions from statement #{statementId}</span>
+          <button className="btn-secondary" style={{ padding: '2px 10px', fontSize: 12 }} onClick={clearStatementFilter}>
+            Show all
+          </button>
+        </div>
+      )}
+
       {/* Summary Cards */}
       {summary && (
         <div className="kpi-grid tight">
@@ -124,14 +194,9 @@ export default function Transactions() {
             <div className="kpi-meta">All time</div>
           </div>
           <div className="panel kpi-card">
-            <div className="kpi-label">Income</div>
-            <div className="kpi-value">£{summary.total_income.toFixed(2)}</div>
-            <div className="kpi-meta">Positive cashflow</div>
-          </div>
-          <div className="panel kpi-card">
-            <div className="kpi-label">Expenses</div>
-            <div className="kpi-value">£{summary.total_expenses.toFixed(2)}</div>
-            <div className="kpi-meta">Outflow</div>
+            <div className="kpi-label">Total Expenses</div>
+            <div className="kpi-value">{currencySymbol}{summary.total_expenses.toFixed(2)}</div>
+            <div className="kpi-meta">All spending</div>
           </div>
           <div className="panel kpi-card">
             <div className="kpi-label">Unclassified</div>
@@ -158,6 +223,14 @@ export default function Transactions() {
           />
           Unclassified only
         </label>
+        <label className="filter-check">
+          <input
+            type="checkbox"
+            checked={!showExcluded}
+            onChange={(e) => { setShowExcluded(!e.target.checked); setPage(1); }}
+          />
+          Hide excluded
+        </label>
       </div>
 
       {/* Bulk Actions */}
@@ -174,6 +247,24 @@ export default function Transactions() {
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+          <button
+            className="bulk-clear"
+            onClick={() => handleBulkExclude(true)}
+          >
+            Exclude from stats
+          </button>
+          <button
+            className="bulk-clear"
+            onClick={() => handleBulkExclude(false)}
+          >
+            Include in stats
+          </button>
+          <button
+            className="bulk-delete"
+            onClick={handleBulkDelete}
+          >
+            Delete selected
+          </button>
           <button
             className="bulk-clear"
             onClick={() => setSelectedIds(new Set())}
@@ -209,7 +300,7 @@ export default function Transactions() {
             ) : (
               transactions.map((txn) => (
                 <Fragment key={txn.id}>
-                  <tr className={selectedIds.has(txn.id) ? 'selected' : ''}>
+                  <tr className={`${selectedIds.has(txn.id) ? 'selected' : ''}${txn.is_excluded ? ' excluded' : ''}`}>
                     <td className="table-cell">
                       <input
                         type="checkbox"
@@ -217,20 +308,77 @@ export default function Transactions() {
                         onChange={() => toggleSelect(txn.id)}
                       />
                     </td>
-                    <td className="table-cell">{formatDate(txn.raw_date)}</td>
+                    <td className="table-cell">
+                      {editTxnId === txn.id ? (
+                        <input
+                          type="date"
+                          className="table-select"
+                          value={txnDrafts[txn.id]?.date || ''}
+                          onChange={(e) =>
+                            setTxnDrafts((prev) => ({
+                              ...prev,
+                              [txn.id]: { ...prev[txn.id], date: e.target.value },
+                            }))
+                          }
+                        />
+                      ) : (
+                        formatDate(txn.effective_date || txn.raw_date)
+                      )}
+                    </td>
                     <td className="table-cell">
                       <div className="txn-desc">
-                        <span>{txn.raw_description}</span>
-                        <button
-                          className="link-button"
-                          onClick={() => toggleExpand(txn.id)}
-                        >
-                          {expandedIds.has(txn.id) ? 'Hide' : 'Details'}
-                        </button>
+                        {editTxnId === txn.id ? (
+                          <input
+                            type="text"
+                            className="table-select"
+                            value={txnDrafts[txn.id]?.description || ''}
+                            onChange={(e) =>
+                              setTxnDrafts((prev) => ({
+                                ...prev,
+                                [txn.id]: { ...prev[txn.id], description: e.target.value },
+                              }))
+                            }
+                          />
+                        ) : (
+                          <span>{txn.description || txn.raw_description}</span>
+                        )}
+                        <div className="txn-actions">
+                          {editTxnId === txn.id ? (
+                            <>
+                              <button className="link-button" onClick={() => saveTxn(txn)}>
+                                Save
+                              </button>
+                              <button className="link-button" onClick={cancelEditTxn}>
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button className="link-button" onClick={() => startEditTxn(txn)}>
+                                Edit
+                              </button>
+                              <button className="link-button" onClick={() => toggleExpand(txn.id)}>
+                                {expandedIds.has(txn.id) ? 'Hide' : 'Details'}
+                              </button>
+                              <button
+                                className="link-button"
+                                onClick={async () => {
+                                  await bulkExclude([txn.id], !txn.is_excluded);
+                                  loadData();
+                                }}
+                              >
+                                {txn.is_excluded ? 'Include' : 'Exclude'}
+                              </button>
+                              <button className="link-button link-danger" onClick={() => handleDelete(txn.id)}>
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className={`table-cell right amount ${txn.amount < 0 ? 'neg' : 'pos'}`}>
-                      {formatAmount(txn.amount)}
+                    <td className={`table-cell right amount${txn.amount > 0 ? ' pos' : ''}`}>
+                      {formatExpense(txn.amount, currencySymbol)}
                     </td>
                     <td className="table-cell">
                       <select
@@ -262,7 +410,7 @@ export default function Transactions() {
                                 <div>{receiptMap[txn.id]?.merchant_name || 'Receipt'}</div>
                                 <div>
                                   {receiptMap[txn.id]?.total_amount !== null
-                                    ? `£${receiptMap[txn.id]?.total_amount?.toFixed(2)}`
+                                    ? `${currencySymbol}${receiptMap[txn.id]?.total_amount?.toFixed(2)}`
                                     : '-'}
                                 </div>
                               </div>
@@ -270,10 +418,85 @@ export default function Transactions() {
                                 {receiptMap[txn.id]?.items.length ? (
                                   receiptMap[txn.id]?.items.map((item) => (
                                     <div key={item.id} className="receipt-item">
-                                      <span>{item.name}</span>
-                                      <span>
-                                        {item.line_total !== null ? `£${item.line_total?.toFixed(2)}` : ''}
-                                      </span>
+                                      {editingItemId === item.id ? (
+                                        <>
+                                          <input
+                                            type="text"
+                                            className="table-select"
+                                            value={itemDrafts[item.id]?.name || item.name}
+                                            onChange={(e) =>
+                                              setItemDrafts((prev) => ({
+                                                ...prev,
+                                                [item.id]: {
+                                                  name: e.target.value,
+                                                  line_total: prev[item.id]?.line_total || '',
+                                                },
+                                              }))
+                                            }
+                                          />
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            className="table-select"
+                                            value={itemDrafts[item.id]?.line_total ?? ''}
+                                            onChange={(e) =>
+                                              setItemDrafts((prev) => ({
+                                                ...prev,
+                                                [item.id]: {
+                                                  name: prev[item.id]?.name || item.name,
+                                                  line_total: e.target.value,
+                                                },
+                                              }))
+                                            }
+                                          />
+                                          <button
+                                            className="link-button"
+                                            onClick={async () => {
+                                              const draft = itemDrafts[item.id];
+                                              const lineTotal =
+                                                draft?.line_total !== undefined
+                                                  ? Number(draft.line_total)
+                                                  : item.line_total;
+                                              await updateReceiptItem(item.id, {
+                                                name: draft?.name || item.name,
+                                                line_total: lineTotal,
+                                              });
+                                              setEditingItemId(null);
+                                              refreshReceipt(txn.id);
+                                            }}
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            className="link-button"
+                                            onClick={() => setEditingItemId(null)}
+                                          >
+                                            Cancel
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span>{item.name}</span>
+                                          <span>
+                                            {item.line_total !== null ? `${currencySymbol}${item.line_total?.toFixed(2)}` : ''}
+                                          </span>
+                                          <button
+                                            className="link-button"
+                                            onClick={() => {
+                                              setEditingItemId(item.id);
+                                              setItemDrafts((prev) => ({
+                                                ...prev,
+                                                [item.id]: {
+                                                  name: item.name,
+                                                  line_total: item.line_total !== null ? item.line_total.toFixed(2) : '',
+                                                },
+                                              }));
+                                            }}
+                                          >
+                                            Edit
+                                          </button>
+                                        </>
+                                      )}
                                     </div>
                                   ))
                                 ) : (

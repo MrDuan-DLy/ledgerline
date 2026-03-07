@@ -1,0 +1,174 @@
+rules:
+  # Eating Out (takeaway, restaurants, coffee)
+  - pattern: "UBER * EATS"
+    pattern_type: contains
+    category: Eating Out
+    priority: 10
+  - pattern: "DELIVEROO"
+    pattern_type: contains
+    category: Eating Out
+    priority: 10
+  - pattern: "JUST EAT"
+    pattern_type: contains
+    category: Eating Out
+    priority: 10
+  - pattern: "NANDOS"
+    pattern_type: contains
+    category: Eating Out
+    priority: 5
+  - pattern: "WAGAMAMA"
+    pattern_type: contains
+    category: Eating Out
+    priority: 5
+  - pattern: "FIVE GUYS"
+    pattern_type: contains
+    category: Eating Out
+    priority: 5
+  - pattern: "STARBUCKS"
+    pattern_type: contains
+    category: Eating Out
+    priority: 5
+  - pattern: "PRET A MANGER"
+    pattern_type: contains
+    category: Eating Out
+    priority: 5
+  - pattern: "COSTA"
+    pattern_type: contains
+    category: Eating Out
+    priority: 5
+  - pattern: "NERO"
+    pattern_type: contains
+    category: Eating Out
+    priority: 5
+  - pattern: "MCDONALD"
+    pattern_type: contains
+    category: Eating Out
+    priority: 5
+  - pattern: "KFC"
+    pattern_type: contains
+    category: Eating Out
+    priority: 5
+
+  # Groceries
+  - pattern: "TESCO"
+    pattern_type: contains
+    category: Groceries
+    priority: 5
+  - pattern: "SAINSBURY"
+    pattern_type: contains
+    category: Groceries
+    priority: 5
+  - pattern: "ASDA"
+    pattern_type: contains
+    category: Groceries
+    priority: 5
+  - pattern: "MORRISONS"
+    pattern_type: contains
+    category: Groceries
+    priority: 5
+  - pattern: "ALDI"
+    pattern_type: contains
+    category: Groceries
+    priority: 5
+  - pattern: "LIDL"
+    pattern_type: contains
+    category: Groceries
+    priority: 5
+  - pattern: "WAITROSE"
+    pattern_type: contains
+    category: Groceries
+    priority: 5
+  - pattern: "CO-OP"
+    pattern_type: contains
+    category: Groceries
+    priority: 5
+  - pattern: "M&S FOOD"
+    pattern_type: contains
+    category: Groceries
+    priority: 5
+
+  # Transport
+  - pattern: "TFL"
+    pattern_type: contains
+    category: Transport
+    priority: 5
+  - pattern: "TRAINLINE"
+    pattern_type: contains
+    category: Transport
+    priority: 5
+  - pattern: "UBER TRIP"
+    pattern_type: contains
+    category: Transport
+    priority: 5
+  - pattern: "UBER * TRIP"
+    pattern_type: contains
+    category: Transport
+    priority: 5
+  - pattern: "BOLT"
+    pattern_type: contains
+    category: Transport
+    priority: 5
+
+  # Shopping
+  - pattern: "AMAZON"
+    pattern_type: contains
+    category: Shopping
+    priority: 3
+  - pattern: "AMAZON PRIME"
+    pattern_type: contains
+    category: Subscriptions
+    priority: 10
+  - pattern: "EBAY"
+    pattern_type: contains
+    category: Shopping
+    priority: 3
+  - pattern: "ARGOS"
+    pattern_type: contains
+    category: Shopping
+    priority: 3
+
+  # Subscriptions
+  - pattern: "NETFLIX"
+    pattern_type: contains
+    category: Subscriptions
+    priority: 5
+  - pattern: "SPOTIFY"
+    pattern_type: contains
+    category: Subscriptions
+    priority: 5
+  - pattern: "APPLE.COM/BILL"
+    pattern_type: contains
+    category: Subscriptions
+    priority: 5
+  - pattern: "GOOGLE STORAGE"
+    pattern_type: contains
+    category: Subscriptions
+    priority: 5
+  - pattern: "DISNEY PLUS"
+    pattern_type: contains
+    category: Subscriptions
+    priority: 5
+  - pattern: "YOUTUBE"
+    pattern_type: contains
+    category: Subscriptions
+    priority: 5
+
+  # Fees
+  - pattern: "INTEREST CHARGE"
+    pattern_type: contains
+    category: Fees & Charges
+    priority: 5
+  - pattern: "OVERDRAFT FEE"
+    pattern_type: contains
+    category: Fees & Charges
+    priority: 5
+
+  # Transfers (low priority - can be overridden by more specific rules)
+  - pattern: "FASTER PAYMENT"
+    pattern_type: contains
+    category: Transfer Out
+    priority: 1
+  - pattern: "BANK TRANSFER"
+    pattern_type: contains
+    category: Transfer Out
+    priority: 1

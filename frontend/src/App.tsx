@@ -3,9 +3,15 @@ import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Import from './pages/Import';
 import Receipts from './pages/Receipts';
+import Review from './pages/Review';
+import Categories from './pages/Categories';
+import Budgets from './pages/Budgets';
+import ToastContainer from './components/Toast';
+import { AppConfigProvider } from './contexts/AppConfig';
 
 function App() {
   return (
+    <AppConfigProvider>
     <BrowserRouter>
       <div className="app-shell">
         <div className="backdrop" />
@@ -28,6 +34,12 @@ function App() {
               <NavLink to="/receipts" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                 Receipts
               </NavLink>
+              <NavLink to="/categories" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                Categories
+              </NavLink>
+              <NavLink to="/budgets" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                Budgets
+              </NavLink>
             </div>
           </div>
         </nav>
@@ -38,10 +50,15 @@ function App() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/import" element={<Import />} />
             <Route path="/receipts" element={<Receipts />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/budgets" element={<Budgets />} />
+            <Route path="/review/:sessionId" element={<Review />} />
           </Routes>
         </main>
+        <ToastContainer />
       </div>
     </BrowserRouter>
+    </AppConfigProvider>
   );
 }
 

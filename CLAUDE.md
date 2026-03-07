@@ -4,49 +4,61 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Personal finance system MVP for single-user local deployment. Uses bank statement PDFs as the source of truth.
+Ledgerline — privacy-first personal finance tracker for single-user local deployment. Import bank statements, auto-classify transactions, capture receipts with AI.
 
 ## Tech Stack
 
-- **Backend**: FastAPI + SQLAlchemy + SQLite
-- **Frontend**: React + Vite + TailwindCSS
-- **PDF Parsing**: pdfplumber
-- **Python**: 3.11 (conda environment: `accounting-tool`)
+- **Backend**: Go (Chi v5 router, sqlx, SQLite via modernc.org/sqlite)
+- **Frontend**: React + Vite + TypeScript
+- **PDF/Receipt AI**: Google Gemini API
+- **Migrations**: goose (embedded in Go binary)
 
 ## Commands
 
 ```bash
-# Backend
-conda activate accounting-tool
-python scripts/init_db.py          # Initialize database
-uvicorn backend.main:app --reload  # Development server (port 8000)
+# Build
+make all              # Build backend + frontend
+make build            # Build Go backend only
+make frontend-build   # Build frontend only
 
-# Frontend
-cd frontend
-npm install
-npm run dev                        # Development server (port 5173)
-npm run build                      # Production build
+# Development
+make dev              # Backend + frontend with hot reload
+make test             # Run Go tests
+make lint             # golangci-lint
+make frontend-lint    # ESLint + tsc --noEmit
+
+# Run
+make run              # Start server (port 8000)
+
+# Docker
+make docker-build     # Build Docker image
+docker compose up -d  # Run with Docker Compose
 ```
 
 ## Architecture
 
 ```
-backend/
-├── main.py              # FastAPI app, CORS, routers
-├── database.py          # SQLite engine, session, Base
-├── config.py            # Paths configuration
-├── models/              # SQLAlchemy ORM
-├── schemas/             # Pydantic models
-├── services/            # Business logic (ClassifyService, ImportService)
-├── routers/             # API endpoints
-└── parsers/             # Bank PDF parsers (HSBCPDFParser)
+backend-go/
+├── cmd/server/          # Entry point (main.go)
+├── internal/
+│   ├── config/          # Env-based configuration
+│   ├── database/        # SQLite connection + goose migrations
+│   ├── handlers/        # HTTP handlers (one file per resource)
+│   ├── middleware/       # CORS, logging, body size limits
+│   ├── models/          # Data models (structs + DB tags)
+│   ├── parsers/         # Bank statement parsers (Gemini PDF, CSV)
+│   └── services/        # Business logic (classify, import, merchant, receipt)
+├── migrations/          # SQL migration files (goose)
+└── go.mod
 
 frontend/
 ├── src/
 │   ├── api/client.ts    # API client
-│   ├── pages/           # Transactions, Import
-│   └── App.tsx          # Router + Navigation
-└── tailwind.config.js
+│   ├── pages/           # Dashboard, Transactions, Import, Receipts, Budgets, etc.
+│   ├── components/      # Shared UI components
+│   ├── contexts/        # AppConfig context (currency, locale)
+│   └── utils/           # Formatting helpers
+└── vite.config.ts
 ```
 
 ## Key Design Decisions
@@ -55,17 +67,25 @@ frontend/
 2. **Deduplication**: `source_hash` = SHA256(date + description + amount + balance) prevents duplicate imports
 3. **Classification priority**: manual > rule > unclassified; manual classifications are never auto-overwritten
 4. **Audit trail**: `category_source` tracks how each transaction was classified
+5. **SQLite concurrency**: `db.SetMaxOpenConns(1)` + `_busy_timeout=5000` for safety
+6. **No CGo**: Uses `modernc.org/sqlite` (pure Go) for easy cross-compilation
+7. **SPA serving**: Go backend serves frontend static files + catch-all for client-side routing
 
 ## API Endpoints
 
-- `GET/POST /api/statements` - List/upload bank statements
+- `POST /api/statements/upload` - Upload bank statement (PDF/CSV)
 - `GET/PATCH /api/transactions` - List/update transactions
 - `POST /api/transactions/bulk-classify` - Bulk classification
 - `GET/POST /api/categories` - Category CRUD
-- `GET/POST /api/rules` - Classification rules CRUD
-- `POST /api/rules/reclassify` - Re-run rules on all non-manual transactions
+- `GET/POST /api/rules` - Classification rules
+- `POST /api/imports/upload` - Upload for AI review
+- `POST /api/receipts/upload` - Upload receipt image
+- `GET/POST /api/budgets` - Budget management
+- `GET/POST /api/merchants` - Merchant management
+- `GET /health` - Health check with DB ping
 
 ## Data
 
 - SQLite: `data/accounting.db`
-- Uploaded PDFs: `data/uploads/`
+- Uploaded files: `data/uploads/`
+- Config: `.env` (see `.env.example`)

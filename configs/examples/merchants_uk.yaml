@@ -1,0 +1,94 @@
+merchants:
+  # Groceries
+  - name: Tesco
+    patterns: ["tesco express", "tesco metro", "tesco stores"]
+    category: Groceries
+  - name: Sainsbury's
+    patterns: ["sainsburys", "sainsbury", "j sainsbury"]
+    category: Groceries
+  - name: Asda
+    patterns: ["asda stores", "asda superstore"]
+    category: Groceries
+  - name: Morrisons
+    patterns: ["wm morrisons", "morrisons stores"]
+    category: Groceries
+  - name: Aldi
+    patterns: ["aldi stores"]
+    category: Groceries
+  - name: Lidl
+    patterns: ["lidl gb"]
+    category: Groceries
+  - name: Waitrose
+    patterns: ["waitrose partners", "little waitrose"]
+    category: Groceries
+  - name: Co-op
+    patterns: ["co op group", "coop", "co operative"]
+    category: Groceries
+  - name: M&S Food
+    patterns: ["marks spencer food", "m s food", "m s simply food"]
+    category: Groceries
+
+  # Eating Out
+  - name: Uber Eats
+    patterns: ["uber eats", "uber bv eats"]
+    category: Eating Out
+  - name: Deliveroo
+    patterns: ["roofoods", "deliveroo"]
+    category: Eating Out
+  - name: Just Eat
+    patterns: ["just eat", "justeat"]
+    category: Eating Out
+  - name: Costa
+    patterns: ["costa coffee", "costa"]
+    category: Eating Out
+  - name: Starbucks
+    patterns: ["starbucks coffee", "starbucks"]
+    category: Eating Out
+  - name: Pret A Manger
+    patterns: ["pret a manger", "pret"]
+    category: Eating Out
+  - name: Nando's
+    patterns: ["nandos", "nando chickenland"]
+    category: Eating Out
+  - name: Wagamama
+    patterns: ["wagamama", "wagamamas"]
+    category: Eating Out
+  - name: Five Guys
+    patterns: ["five guys"]
+    category: Eating Out
+  - name: McDonald's
+    patterns: ["mcdonalds", "mcdonald"]
+    category: Eating Out
+  - name: KFC
+    patterns: ["kfc", "kentucky fried"]
+    category: Eating Out
+
+  # Shopping
+  - name: Amazon
+    patterns: ["amazon eu", "amazon uk", "amzn mktp", "amazon marketplace"]
+    category: Shopping
+  - name: Amazon Prime
+    patterns: ["amazon prime", "prime video"]
+    category: Subscriptions
+
+  # Subscriptions
+  - name: Netflix
+    patterns: ["netflix"]
+    category: Subscriptions
+  - name: Spotify
+    patterns: ["spotify"]
+    category: Subscriptions
+
+  # Transport
+  - name: TfL
+    patterns: ["tfl travel", "tfl gov", "transport for london"]
+    category: Transport
+  - name: Trainline
+    patterns: ["thetrainline", "trainline"]
+    category: Transport
+  - name: Uber
+    patterns: ["uber trip", "uber bv trip"]
+    category: Transport
+  - name: Bolt
+    patterns: ["bolt eu", "bolt technology"]
+    category: Transport

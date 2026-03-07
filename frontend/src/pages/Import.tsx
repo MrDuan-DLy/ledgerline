@@ -1,19 +1,39 @@
 import { useState, useRef, useEffect } from 'react';
-import { uploadStatement, getStatements, Statement, ImportResult } from '../api/client';
+import { useNavigate } from 'react-router-dom';
+import {
+  uploadStatement,
+  uploadForReview,
+  getStatements,
+  getImportSessions,
+  deleteImportSession,
+  Statement,
+  ImportResult,
+  ImportUploadResult,
+  ImportSession,
+} from '../api/client';
+import { formatCurrency } from '../utils/format';
+import { useAppConfig } from '../contexts/AppConfig';
 
 export default function Import() {
+  const navigate = useNavigate();
   const [statements, setStatements] = useState<Statement[]>([]);
+  const [sessions, setSessions] = useState<ImportSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadStatements = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const data = await getStatements();
-      setStatements(data);
+      const [stmts, sess] = await Promise.all([
+        getStatements(),
+        getImportSessions(),
+      ]);
+      setStatements(stmts);
+      setSessions(sess);
     } catch (e) {
       console.error(e);
     }
@@ -21,33 +41,50 @@ export default function Import() {
   };
 
   useEffect(() => {
-    loadStatements();
+    loadData();
   }, []);
 
   const handleUpload = async (file: File) => {
     const lowerName = file.name.toLowerCase();
-    if (!lowerName.endsWith('.pdf') && !lowerName.endsWith('.csv')) {
-      setResult({
-        success: false,
-        statement_id: null,
-        transactions_imported: 0,
-        transactions_skipped: 0,
-        errors: ['Only PDF or CSV files are supported'],
-        message: 'Please upload a PDF or CSV file',
-      });
+    const isPdf = lowerName.endsWith('.pdf');
+    const isCsv = lowerName.endsWith('.csv');
+
+    if (!isPdf && !isCsv) {
+      setError('Upload a bank statement (PDF or CSV). For receipt images, use the Receipts page.');
       return;
     }
 
     setUploading(true);
     setResult(null);
+    setError(null);
 
+    // PDFs go through AI review flow
+    if (isPdf) {
+      try {
+        const res: ImportUploadResult = await uploadForReview(file);
+        if (res.success && res.session_id) {
+          navigate(`/review/${res.session_id}`);
+          return;
+        }
+        setError(res.message || 'Upload failed');
+        if (res.errors?.length) {
+          setError(res.errors.join(', '));
+        }
+      } catch {
+        setError('Failed to upload file');
+      }
+      setUploading(false);
+      return;
+    }
+
+    // CSVs go through the existing direct import flow
     try {
       const res = await uploadStatement(file);
       setResult(res);
       if (res.success) {
-        loadStatements();
+        loadData();
       }
-    } catch (e) {
+    } catch {
       setResult({
         success: false,
         statement_id: null,
@@ -59,6 +96,11 @@ export default function Import() {
     }
 
     setUploading(false);
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    await deleteImportSession(sessionId);
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -83,14 +125,18 @@ export default function Import() {
     });
   };
 
+  const statementSessions = sessions.filter(s => s.source_type !== 'receipt_image');
+  const pendingSessions = statementSessions.filter(s => s.status === 'pending');
+  const confirmedSessions = statementSessions.filter(s => s.status === 'confirmed');
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <p className="eyebrow">Statement Import</p>
-          <h1>Bring in your PDFs and CSVs.</h1>
+          <h1>Import bank statements.</h1>
         </div>
-        <div className="page-note">CSV files require "starling" in the filename.</div>
+        <div className="page-note">PDFs use AI extraction with review. CSVs import directly.</div>
       </div>
 
       {/* Upload Area */}
@@ -111,15 +157,15 @@ export default function Import() {
         {uploading ? (
           <div className="upload-state">
             <div className="spinner" />
-            <p>Uploading and parsing...</p>
+            <p>Uploading and extracting with AI...</p>
           </div>
         ) : (
           <>
             <svg className="upload-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12l-3 3m0 0l3-3m-3 3h8" />
             </svg>
-            <p className="upload-title">Drop your statement PDF or CSV here</p>
-            <p className="upload-sub">HSBC PDFs, Starling CSVs</p>
+            <p className="upload-title">Drop your bank statement here</p>
+            <p className="upload-sub">Bank statement PDFs or CSVs</p>
             <button
               className="btn-primary"
               onClick={() => fileInputRef.current?.click()}
@@ -130,7 +176,15 @@ export default function Import() {
         )}
       </div>
 
-      {/* Result */}
+      {/* Error */}
+      {error && (
+        <div className="panel result-card error">
+          <div className="result-title">Upload Failed</div>
+          <p className="result-message">{error}</p>
+        </div>
+      )}
+
+      {/* Result (CSV direct import) */}
       {result && (
         <div className={`panel result-card ${result.success ? 'success' : 'error'}`}>
           <div className="result-title">
@@ -150,12 +204,67 @@ export default function Import() {
         </div>
       )}
 
-      {/* Previous Imports */}
+      {/* Pending Review Sessions */}
+      {pendingSessions.length > 0 && (
+        <div className="panel table-card">
+          <div className="panel-header" style={{ padding: '16px 16px 0' }}>
+            <div>
+              <div className="panel-title">Pending Review</div>
+              <div className="panel-sub">Uploads waiting for your review</div>
+            </div>
+          </div>
+          <table className="table">
+            <thead>
+              <tr>
+                <th className="table-head">File</th>
+                <th className="table-head">Type</th>
+                <th className="table-head right">Items</th>
+                <th className="table-head">Uploaded</th>
+                <th className="table-head right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingSessions.map((sess) => (
+                <tr key={sess.id}>
+                  <td className="table-cell">{sess.source_file}</td>
+                  <td className="table-cell">
+                    <span className="panel-pill">
+                      {sess.source_type === 'pdf' ? 'PDF' : 'Receipt'}
+                    </span>
+                  </td>
+                  <td className="table-cell right">{sess.items.length}</td>
+                  <td className="table-cell">{formatDate(sess.created_at)}</td>
+                  <td className="table-cell right">
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <button
+                        className="btn-primary"
+                        style={{ padding: '4px 12px', fontSize: 13 }}
+                        onClick={() => navigate(`/review/${sess.id}`)}
+                      >
+                        Review
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        style={{ padding: '4px 12px', fontSize: 13, color: 'var(--accent-rose)' }}
+                        onClick={() => handleDeleteSession(sess.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Previous Imports (confirmed statements) */}
       <div className="panel table-card">
-        <div className="panel-header">
+        <div className="panel-header" style={{ padding: '16px 16px 0' }}>
           <div>
             <div className="panel-title">Import history</div>
-            <div className="panel-sub">Latest statement files</div>
+            <div className="panel-sub">Confirmed statement files</div>
           </div>
         </div>
         <table className="table">
@@ -175,14 +284,14 @@ export default function Import() {
               <tr><td colSpan={5} className="table-empty">No statements imported yet</td></tr>
             ) : (
               statements.map((stmt) => (
-                <tr key={stmt.id}>
+                <tr key={stmt.id} className="table-row-link" onClick={() => navigate(`/transactions?statement_id=${stmt.id}`)}>
                   <td className="table-cell">{stmt.filename}</td>
                   <td className="table-cell">
                     {formatDate(stmt.period_start)} - {formatDate(stmt.period_end)}
                   </td>
                   <td className="table-cell right">{stmt.transaction_count}</td>
                   <td className="table-cell right">
-                    {stmt.closing_balance !== null ? `£${stmt.closing_balance.toFixed(2)}` : '-'}
+                    {stmt.closing_balance !== null ? formatCurrency(stmt.closing_balance) : '-'}
                   </td>
                   <td className="table-cell">{formatDate(stmt.imported_at)}</td>
                 </tr>
@@ -191,6 +300,61 @@ export default function Import() {
           </tbody>
         </table>
       </div>
+
+      {/* Confirmed AI Import Sessions */}
+      {confirmedSessions.length > 0 && (
+        <div className="panel table-card">
+          <div className="panel-header" style={{ padding: '16px 16px 0' }}>
+            <div>
+              <div className="panel-title">AI import history</div>
+              <div className="panel-sub">Previously reviewed imports</div>
+            </div>
+          </div>
+          <table className="table">
+            <thead>
+              <tr>
+                <th className="table-head">File</th>
+                <th className="table-head">Type</th>
+                <th className="table-head right">Items</th>
+                <th className="table-head">Imported</th>
+                <th className="table-head right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {confirmedSessions.map((sess) => (
+                <tr key={sess.id} className="table-row-link" onClick={() => navigate(`/review/${sess.id}`)}>
+                  <td className="table-cell">{sess.source_file}</td>
+                  <td className="table-cell">
+                    <span className="panel-pill">
+                      {sess.source_type === 'pdf' ? 'PDF' : 'CSV'}
+                    </span>
+                  </td>
+                  <td className="table-cell right">{sess.items.length}</td>
+                  <td className="table-cell">{formatDate(sess.created_at)}</td>
+                  <td className="table-cell right">
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <button
+                        className="btn-secondary"
+                        style={{ padding: '4px 12px', fontSize: 13 }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/review/${sess.id}`); }}
+                      >
+                        View
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        style={{ padding: '4px 12px', fontSize: 13, color: 'var(--accent-rose)' }}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteSession(sess.id); }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
