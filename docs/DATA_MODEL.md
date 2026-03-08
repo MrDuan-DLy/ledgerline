@@ -198,15 +198,13 @@ Helper methods: `get_patterns()`, `set_patterns()`, `add_pattern()` for JSON lis
 | new_values | Text | - | NULL |
 | created_at | DateTime | - | `utcnow` |
 
-## Seed Data (init_db.py)
+## Seed Data
 
 **Default categories** (15): Income, Transfer In, Housing, Groceries, Eating Out, Transport, Shopping, Subscriptions, Entertainment, Health, Travel, Education, Transfer Out, Fees & Charges, Other
 
-**Default rules** (40+): Pattern-based classification for common UK merchants
+**Default rules**: Pattern-based classification rules (see `configs/examples/`)
 
-**Default merchants** (23+): Canonical names with normalized aliases (Tesco, Sainsbury's, Uber Eats, Netflix, TfL, etc.)
-
-**Default account**: HSBC Current Account (id: `hsbc-main`)
+**Default merchants**: Canonical names with normalized aliases (see `configs/examples/merchants_uk.yaml`)
 
 ## Design Principles
 
