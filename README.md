@@ -1,6 +1,8 @@
 <div align="center">
 
-# Ledgerline
+<img src="docs/assets/banner.png" alt="Ledgerline" width="600" />
+
+<br/>
 
 **Privacy-first personal finance tracker / 隐私优先的个人财务工具**
 
