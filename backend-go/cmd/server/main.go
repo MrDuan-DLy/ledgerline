@@ -40,14 +40,6 @@ func main() {
 	r.Use(middleware.Logging)
 	r.Use(middleware.BodyLimit(50 << 20)) // 50MB global limit
 
-	// Root
-	r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
-		handlers.WriteJSON(w, http.StatusOK, map[string]string{
-			"status":  "ok",
-			"message": "Personal Accounting System API",
-		})
-	})
-
 	// Health with DB check
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		if err := database.DB().Ping(); err != nil {
@@ -92,6 +84,9 @@ func main() {
 	// SPA catch-all: serve frontend static files with index.html fallback
 	staticDir := envOrDefault("STATIC_DIR", "./static")
 	if info, err := os.Stat(staticDir); err == nil && info.IsDir() {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
+		})
 		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 			path := filepath.Join(staticDir, r.URL.Path)
 			if info, err := os.Stat(path); err == nil && !info.IsDir() {
@@ -99,6 +94,13 @@ func main() {
 				return
 			}
 			http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
+		})
+	} else {
+		r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
+			handlers.WriteJSON(w, http.StatusOK, map[string]string{
+				"status":  "ok",
+				"message": "Personal Accounting System API",
+			})
 		})
 	}
 

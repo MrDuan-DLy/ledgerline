@@ -57,7 +57,7 @@ func Load() (*Config, error) {
 		ReceiptsDir:           receiptsDir,
 		PageImagesDir:         pageImagesDir,
 		Port:                  envOrDefault("PORT", "8000"),
-		Host:                  envOrDefault("HOST", "127.0.0.1"),
+		Host:                  envOrDefault("HOST", "0.0.0.0"),
 		DefaultCurrency:       envOrDefault("DEFAULT_CURRENCY", "GBP"),
 		DefaultCurrencySymbol: envOrDefault("DEFAULT_CURRENCY_SYMBOL", "£"),
 		DefaultLocale:         envOrDefault("DEFAULT_LOCALE", "en-GB"),
